@@ -74,7 +74,7 @@ app.post('/cotizar-web', async (req, res) => {
 
     const response = await fetch(url);
     const data = await response.json();
-
+console.log("Respuesta Google:", JSON.stringify(data, null, 2));
     if (
       data.rows &&
       data.rows[0].elements &&
