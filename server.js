@@ -5,7 +5,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname)); // Permite mostrar index y logo
+app.use(express.static(__dirname)); // Permite servir index.html y logo
 
 // Node 18+ ya incluye fetch
 const fetch = global.fetch;
@@ -28,9 +28,8 @@ function calcularTarifa(distancia_km) {
   return { neto, iva, total };
 }
 
-// Endpoint cotización
+// Endpoint de cotización
 app.post('/cotizar', async (req, res) => {
-
   const { inicio, destino } = req.body;
 
   const googleApiKey = process.env.GOOGLE_MAPS_API_KEY;
@@ -40,14 +39,12 @@ app.post('/cotizar', async (req, res) => {
   }
 
   try {
-
     const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(inicio)}&destinations=${encodeURIComponent(destino)}&key=${googleApiKey}`;
 
     const response = await fetch(url);
     const data = await response.json();
 
     if (data.rows && data.rows[0].elements[0].status === "OK") {
-
       const distancia_metros = data.rows[0].elements[0].distance.value;
       const distancia_km = distancia_metros / 1000;
 
@@ -61,16 +58,13 @@ app.post('/cotizar', async (req, res) => {
         iva,
         total
       });
-
     } else {
       res.status(400).json({ error: "No se pudo calcular distancia" });
     }
-
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Error Google Maps" });
   }
-
 });
 
 const PORT = process.env.PORT || 3000;

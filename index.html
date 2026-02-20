@@ -214,6 +214,8 @@ async function cotizar() {
 
     const resultadoDiv = document.getElementById("resultado");
     resultadoDiv.style.display = "block";
+
+    // Mostrar resultado básico
     resultadoDiv.innerHTML = `
       <strong>📍 Origen:</strong> ${data.inicio}<br>
       <strong>📍 Destino:</strong> ${data.destino}<br><br>
@@ -223,8 +225,20 @@ async function cotizar() {
       <strong>💳 Total:</strong> <strong>$${data.total}</strong>
     `;
 
+    // Calcular hora estimada +90 minutos
+    const ahora = new Date();
+    const fechaEstimado = new Date(ahora.getTime() + 90 * 60000); // 90 minutos
+    const horas = fechaEstimado.getHours().toString().padStart(2, '0');
+    const minutos = fechaEstimado.getMinutes().toString().padStart(2, '0');
+
+    // Agregar línea de atención estimada
+    resultadoDiv.innerHTML += `<br><br>
+      <em>Podemos realizar tu envío a partir de las ${horas}:${minutos} horas.</em>
+    `;
+
+    // Preparar WhatsApp
     const telefono = "56942325524"; // reemplaza con tu número
-    const mensaje = `Hola, acepto el servicio de TuMotoExpress.%0AOrigen: ${data.inicio}%0ADestino: ${data.destino}%0ADistancia: ${data.distancia_km.toFixed(2)} km%0ATotal: $${data.total}`;
+    const mensaje = `Hola, acepto el servicio de TuMotoExpress.%0AOrigen: ${data.inicio}%0ADestino: ${data.destino}%0ADistancia: ${data.distancia_km.toFixed(2)} km%0ATotal: $${data.total}%0APodemos realizar tu envío a partir de las ${horas}:${minutos} horas`;
     const link = `https://wa.me/${telefono}?text=${mensaje}`;
 
     const btn = document.getElementById("btnWhatsapp");
