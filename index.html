@@ -106,7 +106,7 @@ button:hover {
   overflow: hidden;
 }
 
-/* Logo de marca de agua dentro del contenedor de resultados */
+/* Logo de marca de agua dentro del contenedor de resultados - opacidad duplicada */
 .resultado::before {
   content: "";
   position: absolute;
@@ -116,7 +116,7 @@ button:hover {
   height: 100%;
   background: url('logo.png') no-repeat center center;
   background-size: 150px;
-  opacity: 0.05; /* sutil */
+  opacity: 0.10; /* duplicamos intensidad */
   z-index: 0;
 }
 
