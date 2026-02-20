@@ -211,7 +211,7 @@ function obtenerMensajeHoraEstimado() {
         proximoDiaHabil.setDate(proximoDiaHabil.getDate() + 1);
     } while (proximoDiaHabil.getDay() === 0 || proximoDiaHabil.getDay() === 6); // saltar domingos y sábados
 
-    return `Lo sentimos, fuera de nuestro horario de atención. Podemos agendar tu envío para el día ${diasSemana[proximoDiaHabil.getDay()]} por la mañana.`;
+    return `Lo sentimos, nos encontramos fuera de nuestro horario de atención. Podemos agendar tu envío para el día ${diasSemana[proximoDiaHabil.getDay()]} por la mañana.`;
 }
 
 // Función cotizar actualizada
