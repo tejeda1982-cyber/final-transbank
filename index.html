@@ -2,165 +2,149 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<title>TuMotoExpress Cotizador</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TuMotoExpress - Cotizador</title>
-
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
 
 <style>
-* { margin:0; padding:0; box-sizing:border-box; font-family:'Poppins',sans-serif; }
-
 body {
-  height:100vh;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  background:#111;
-  color:white;
-  position:relative;
-  overflow:hidden;
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: #f5f6fa;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  position: relative;
 }
 
 body::before {
-  content:"";
-  position:absolute;
-  width:100%;
-  height:100%;
-  background:url('logo.png') center center no-repeat;
-  background-size:350px;
-  opacity:0.05;
-  z-index:0;
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: url('logo.png') no-repeat center center;
+  background-size: 400px;
+  opacity: 0.05;
+  z-index: -1;
 }
 
-.card {
-  background:rgba(20,20,20,0.9);
-  padding:30px;
-  width:90%;
-  max-width:420px;
-  border-radius:20px;
-  box-shadow:0 0 40px rgba(0,0,0,0.5);
-  z-index:1;
+.container {
+  background: white;
+  padding: 30px;
+  border-radius: 20px;
+  width: 95%;
+  max-width: 420px;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.15);
 }
 
-h1 {
-  text-align:center;
-  margin-bottom:20px;
+h2 {
+  text-align: center;
+  margin-bottom: 20px;
 }
 
 input {
-  width:100%;
-  padding:14px;
-  border:none;
-  border-radius:12px;
-  margin-bottom:15px;
-  background:#222;
-  color:white;
+  width: 100%;
+  padding: 14px;
+  margin: 10px 0;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  font-size: 14px;
 }
 
 button {
-  width:100%;
-  padding:14px;
-  border:none;
-  border-radius:12px;
-  font-size:16px;
-  font-weight:600;
-  cursor:pointer;
-  margin-top:10px;
+  width: 100%;
+  padding: 15px;
+  margin-top: 10px;
+  border-radius: 10px;
+  border: none;
+  font-size: 15px;
+  cursor: pointer;
 }
 
 .btn-cotizar {
-  background:#ffcc00;
-  color:black;
+  background: black;
+  color: white;
 }
 
 .btn-whatsapp {
-  background:#25D366;
-  color:white;
-  display:none;
+  background: #25D366;
+  color: white;
+  display: none;
 }
 
 .resultado {
-  margin-top:20px;
-  line-height:1.6;
+  margin-top: 20px;
+  background: #f2f2f2;
+  padding: 15px;
+  border-radius: 12px;
+  font-size: 14px;
+  display: none;
 }
 </style>
 </head>
 
 <body>
 
-<div class="card">
-  <h1>🚀 Cotiza tu envío</h1>
+<div class="container">
 
-  <input id="inicio" placeholder="Dirección de retiro">
-  <input id="destino" placeholder="Dirección de entrega">
+<h2>🚀 Cotiza tu Envío</h2>
 
-  <button class="btn-cotizar" onclick="cotizar()">Calcular precio</button>
+<input type="text" id="inicio" placeholder="Dirección de origen">
+<input type="text" id="destino" placeholder="Dirección de destino">
 
-  <div class="resultado" id="resultado"></div>
+<button class="btn-cotizar" onclick="cotizar()">Cotizar</button>
 
-  <button class="btn-whatsapp" id="btnWhatsapp">
-    Aceptar y enviar por WhatsApp
-  </button>
+<div id="resultado" class="resultado"></div>
+
+<button id="btnWhatsapp" class="btn-whatsapp">Aceptar por WhatsApp</button>
+
 </div>
 
-<!-- 👇 AQUÍ PEGAS TU API KEY -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD7ExvZ0pJBjs37LHwbOcWrUqpxg_V78mk&libraries=places"></script>
-
 <script>
-function initAutocomplete() {
-  const options = {
-    componentRestrictions: { country: "cl" },
-    fields: ["formatted_address"]
-  };
-
-  new google.maps.places.Autocomplete(document.getElementById("inicio"), options);
-  new google.maps.places.Autocomplete(document.getElementById("destino"), options);
-}
-
-window.onload = initAutocomplete;
-
 async function cotizar() {
+
   const inicio = document.getElementById("inicio").value;
   const destino = document.getElementById("destino").value;
 
-  const response = await fetch('/cotizar', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({inicio,destino})
+  const response = await fetch("/cotizar", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ inicio, destino })
   });
 
   const data = await response.json();
-  const resultado = document.getElementById("resultado");
-  const btnWhatsapp = document.getElementById("btnWhatsapp");
 
-  if(data.error){
-    resultado.innerHTML="❌ Error al calcular.";
-    btnWhatsapp.style.display="none";
+  if (data.error) {
+    alert(data.error);
     return;
   }
 
-  resultado.innerHTML = `
-    📍 Distancia: ${data.distancia_km.toFixed(2)} km<br>
-    💰 Neto: $${data.neto}<br>
-    🧾 IVA: $${data.iva}<br>
-    💳 <strong>Total: $${data.total}</strong>
+  const resultadoDiv = document.getElementById("resultado");
+  resultadoDiv.style.display = "block";
+
+  resultadoDiv.innerHTML = `
+    <strong>📍 Origen:</strong> ${data.inicio}<br>
+    <strong>📍 Destino:</strong> ${data.destino}<br><br>
+    <strong>📏 Distancia:</strong> ${data.distancia_km.toFixed(2)} km<br>
+    <strong>💵 Neto:</strong> $${data.neto}<br>
+    <strong>🧾 IVA:</strong> $${data.iva}<br>
+    <strong>💳 Total:</strong> <strong>$${data.total}</strong>
   `;
 
-  const mensaje = `Hola TuMotoExpress 👋
-Quiero aceptar la cotización:
+  const telefono = "56942325524"; // REEMPLAZA CON TU NUMERO REAL
 
-📍 Retiro: ${inicio}
-📍 Entrega: ${destino}
-💳 Total: $${data.total}
+  const mensaje = `Hola, acepto el servicio de TuMotoExpress.%0AOrigen: ${data.inicio}%0ADestino: ${data.destino}%0ADistancia: ${data.distancia_km.toFixed(2)} km%0ATotal: $${data.total}`;
 
-¿Podemos coordinar?`;
+  const link = `https://wa.me/${telefono}?text=${mensaje}`;
 
-  btnWhatsapp.style.display="block";
-
-  // 👇 CAMBIA POR TU NÚMERO REAL
-  btnWhatsapp.onclick = () => {
-    window.open(`https://wa.me/56942325524?text=${encodeURIComponent(mensaje)}`);
+  const btn = document.getElementById("btnWhatsapp");
+  btn.style.display = "block";
+  btn.onclick = function() {
+    window.open(link, "_blank");
   };
+
 }
 </script>
 
