@@ -2,132 +2,167 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Chatbot TumotoExpress</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TuMotoExpress - Cotizador</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+
 <style>
-body { font-family: Arial; background-color: #ece5dd; margin:0; padding:0; }
-.chat-container { width: 420px; max-width:95%; margin:40px auto; background:#fff; border-radius:10px; box-shadow:0 0 12px rgba(0,0,0,0.2); display:flex; flex-direction:column; height:650px; }
-.title { text-align:center; font-weight:bold; font-size:20px; margin:15px 0; color:#075e54; }
-.agent-name { text-align:center; font-weight:bold; margin-bottom:10px; color:#128c7e; }
-.chat-log { flex:1; overflow-y:auto; padding:15px; background-color:#e5ddd5; }
-.message { margin:5px 0; max-width:75%; padding:8px 12px; border-radius:10px; clear:both; word-wrap:break-word; }
-.bot-message { background-color:#25d366; color:#fff; float:left; }
-.user-message { background-color:#dcf8c6; color:#000; float:right; }
-.input-container { display:flex; padding:10px; gap:5px; border-top:1px solid #ddd; background-color:#f0f0f0; }
-input { flex:1; padding:8px; border-radius:5px; border:1px solid #ccc; font-size:14px; }
-button { padding:8px 12px; border:none; border-radius:5px; background-color:#128c7e; color:white; cursor:pointer; font-weight:bold; }
-button:hover { background-color:#075e54; }
+* { margin:0; padding:0; box-sizing:border-box; font-family:'Poppins',sans-serif; }
+
+body {
+  height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background:#111;
+  color:white;
+  position:relative;
+  overflow:hidden;
+}
+
+body::before {
+  content:"";
+  position:absolute;
+  width:100%;
+  height:100%;
+  background:url('logo.png') center center no-repeat;
+  background-size:350px;
+  opacity:0.05;
+  z-index:0;
+}
+
+.card {
+  background:rgba(20,20,20,0.9);
+  padding:30px;
+  width:90%;
+  max-width:420px;
+  border-radius:20px;
+  box-shadow:0 0 40px rgba(0,0,0,0.5);
+  z-index:1;
+}
+
+h1 {
+  text-align:center;
+  margin-bottom:20px;
+}
+
+input {
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:12px;
+  margin-bottom:15px;
+  background:#222;
+  color:white;
+}
+
+button {
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:12px;
+  font-size:16px;
+  font-weight:600;
+  cursor:pointer;
+  margin-top:10px;
+}
+
+.btn-cotizar {
+  background:#ffcc00;
+  color:black;
+}
+
+.btn-whatsapp {
+  background:#25D366;
+  color:white;
+  display:none;
+}
+
+.resultado {
+  margin-top:20px;
+  line-height:1.6;
+}
 </style>
 </head>
-<body>
-<div class="chat-container">
-<div class="title">💰 Cotización</div>
-<div id="agent" class="agent-name">Agente: Lucas</div>
-<div class="chat-log" id="chatLog"></div>
 
-<div class="input-container">
-  <input type="text" id="inputMsg" placeholder="Escribe tu mensaje...">
-  <button id="sendBtn">Enviar</button>
+<body>
+
+<div class="card">
+  <h1>🚀 Cotiza tu envío</h1>
+
+  <input id="inicio" placeholder="Dirección de retiro">
+  <input id="destino" placeholder="Dirección de entrega">
+
+  <button class="btn-cotizar" onclick="cotizar()">Calcular precio</button>
+
+  <div class="resultado" id="resultado"></div>
+
+  <button class="btn-whatsapp" id="btnWhatsapp">
+    Aceptar y enviar por WhatsApp
+  </button>
 </div>
-</div>
+
+<!-- 👇 AQUÍ PEGAS TU API KEY -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD7ExvZ0pJBjs37LHwbOcWrUqpxg_V78mk&libraries=places"></script>
 
 <script>
-const chatLog = document.getElementById('chatLog');
-const inputMsg = document.getElementById('inputMsg');
-const sendBtn = document.getElementById('sendBtn');
-const agentNameEl = document.getElementById('agent');
+function initAutocomplete() {
+  const options = {
+    componentRestrictions: { country: "cl" },
+    fields: ["formatted_address"]
+  };
 
-const agentes = ["Lucas", "Francisco", "Gina"];
-let ultimoAgenteIndex = 0;
-
-function actualizarAgente(){ 
-  ultimoAgenteIndex = (ultimoAgenteIndex+1)%agentes.length; 
-  agentNameEl.innerText="Agente: "+agentes[ultimoAgenteIndex]; 
-  return agentes[ultimoAgenteIndex]; 
+  new google.maps.places.Autocomplete(document.getElementById("inicio"), options);
+  new google.maps.places.Autocomplete(document.getElementById("destino"), options);
 }
 
-function agregarMensaje(texto, tipo){ 
-  const div=document.createElement('div'); 
-  div.className='message '+(tipo==='bot'?'bot-message':'user-message'); 
-  div.innerText=texto; 
-  chatLog.appendChild(div); 
-  chatLog.scrollTop=chatLog.scrollHeight; 
-}
+window.onload = initAutocomplete;
 
-let estado="inicio";
-let respuestas={};
+async function cotizar() {
+  const inicio = document.getElementById("inicio").value;
+  const destino = document.getElementById("destino").value;
 
-function iniciarChat(){
-  agregarMensaje("👋 Hola! Bienvenido a TumotoExpress. Elige una opción:\n1️⃣ Cotizar envío\n2️⃣ Hablar con un agente",'bot');
-  estado="opcion";
-}
+  const response = await fetch('/cotizar', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({inicio,destino})
+  });
 
-function enviarPedido(res){
-  const agente = actualizarAgente();
-  agregarMensaje("📨 Registrando pedido (simulado)...",'bot');
-  console.log("Pedido:", res, "Agente asignado:", agente);
-  agregarMensaje(`✅ Pedido registrado. Agente asignado: ${agente}`,'bot');
-}
+  const data = await response.json();
+  const resultado = document.getElementById("resultado");
+  const btnWhatsapp = document.getElementById("btnWhatsapp");
 
-async function cotizarEnvio(inicio,destino){
-  agregarMensaje("💵 Calculando cotización...",'bot');
-  try{
-    const res=await fetch('/cotizar',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({inicio,destino})
-    });
-    const data=await res.json();
-    if(data.error){ agregarMensaje("❌ Error calculando cotización",'bot'); estado="fin"; return false;}
-    else{
-      respuestas.total=data.total_a_pagar;
-      respuestas.distancia=data.distancia_km;
-      agregarMensaje(`💰 Distancia: ${data.distancia_km.toFixed(2)} km\nTotal a pagar: $${data.total_a_pagar}\n1️⃣ Aceptar  2️⃣ Rechazar`,'bot');
-      estado="confirmarCot";
-      return true;
-    }
-  }catch(e){ agregarMensaje("❌ Error conectando con servidor",'bot'); estado="fin"; return false; }
-}
-
-function procesarMensaje(msg){
-  if(!msg) return;
-  agregarMensaje(msg,'user');
-  inputMsg.value=''; // limpia input después de enviar
-  inputMsg.focus();   // cursor en input
-
-  switch(estado){
-    case "inicio": iniciarChat(); break;
-    case "opcion":
-      if(msg==='1' || msg.toLowerCase().includes("cotizar")){ 
-        respuestas={}; estado="inicioDir"; 
-        agregarMensaje("📍 Ingresa la dirección de inicio",'bot');
-      } else if(msg==='2' || msg.toLowerCase().includes("agente")){
-        agregarMensaje("☎️ Un agente se pondrá en contacto contigo.",'bot'); estado="fin";
-      } else agregarMensaje("❌ Opción no válida. Escribe 1 o 2",'bot');
-      break;
-    case "inicioDir": respuestas.inicio=msg; estado="destinoDir"; agregarMensaje("📍 Ingresa la dirección de destino",'bot'); break;
-    case "destinoDir": respuestas.destino=msg; estado="calcularCot"; cotizarEnvio(respuestas.inicio,respuestas.destino); break;
-    case "confirmarCot":
-      if(msg==='1' || msg.toLowerCase().includes("sí")){ estado="remitente"; agregarMensaje("📝 Ingresa tu nombre completo",'bot'); }
-      else if(msg==='2' || msg.toLowerCase().includes("no")){ agregarMensaje("❌ Cotización rechazada. Fin del proceso",'bot'); estado="fin"; }
-      else agregarMensaje("❌ Responde 1️⃣ para aceptar, 2️⃣ para rechazar",'bot');
-      break;
-    case "remitente": respuestas.remitente_nombre=msg; estado="telefono"; agregarMensaje("📞 Ingresa tu teléfono",'bot'); break;
-    case "telefono": respuestas.remitente_telefono=msg; estado="destinatarioNombre"; agregarMensaje("📝 Nombre del destinatario",'bot'); break;
-    case "destinatarioNombre": respuestas.destinatario_nombre=msg; estado="destinatarioTelefono"; agregarMensaje("📞 Teléfono del destinatario",'bot'); break;
-    case "destinatarioTelefono": respuestas.destinatario_telefono=msg; estado="detalle"; agregarMensaje("📦 Detalle del pedido",'bot'); break;
-    case "detalle": respuestas.detalle=msg; estado="fin"; enviarPedido(respuestas); break;
-    case "fin": agregarMensaje("✅ Proceso finalizado. Gracias por usar TumotoExpress!",'bot'); break;
+  if(data.error){
+    resultado.innerHTML="❌ Error al calcular.";
+    btnWhatsapp.style.display="none";
+    return;
   }
+
+  resultado.innerHTML = `
+    📍 Distancia: ${data.distancia_km.toFixed(2)} km<br>
+    💰 Neto: $${data.neto}<br>
+    🧾 IVA: $${data.iva}<br>
+    💳 <strong>Total: $${data.total}</strong>
+  `;
+
+  const mensaje = `Hola TuMotoExpress 👋
+Quiero aceptar la cotización:
+
+📍 Retiro: ${inicio}
+📍 Entrega: ${destino}
+💳 Total: $${data.total}
+
+¿Podemos coordinar?`;
+
+  btnWhatsapp.style.display="block";
+
+  // 👇 CAMBIA POR TU NÚMERO REAL
+  btnWhatsapp.onclick = () => {
+    window.open(`https://wa.me/56942325524?text=${encodeURIComponent(mensaje)}`);
+  };
 }
-
-sendBtn.addEventListener('click',()=>procesarMensaje(inputMsg.value.trim()));
-inputMsg.addEventListener('keypress',e=>{ if(e.key==='Enter') procesarMensaje(inputMsg.value.trim()); });
-
-estado="inicio";
-procesarMensaje("");
 </script>
+
 </body>
 </html>
-
-
-
