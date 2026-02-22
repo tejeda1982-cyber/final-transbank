@@ -39,13 +39,22 @@ app.post('/cotizar', async (req, res) => {
   }
 
   try {
-    const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(inicio)}&destinations=${encodeURIComponent(destino)}&key=${googleApiKey}`;
+    // MODIFICACIÓN: usar Directions API con alternatives=true para obtener la ruta más corta
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(inicio)}&destination=${encodeURIComponent(destino)}&key=${googleApiKey}&mode=driving&alternatives=true`;
 
     const response = await fetch(url);
     const data = await response.json();
 
-    if (data.rows && data.rows[0].elements[0].status === "OK") {
-      const distancia_metros = data.rows[0].elements[0].distance.value;
+    if (data.routes && data.routes.length > 0) {
+      // Elegir la ruta con menor distancia
+      let rutaMasCorta = data.routes[0];
+      for (const ruta of data.routes) {
+        if (ruta.legs[0].distance.value < rutaMasCorta.legs[0].distance.value) {
+          rutaMasCorta = ruta;
+        }
+      }
+
+      const distancia_metros = rutaMasCorta.legs[0].distance.value;
       const distancia_km = distancia_metros / 1000;
 
       const { neto, iva, total } = calcularTarifa(distancia_km);
