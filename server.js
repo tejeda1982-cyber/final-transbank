@@ -1,0 +1,162 @@
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
+const fetch = require("node-fetch");
+const { Resend } = require('resend');
+const { WebpayPlus, Options, Environment } = require("transbank-sdk");
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+app.use(express.static(__dirname));
+
+// Configurar Transbank
+const tx = new WebpayPlus.Transaction(
+  new Options(
+    process.env.TRANSBANK_COMMERCE_CODE,
+    process.env.TRANSBANK_API_KEY,
+    process.env.TRANSBANK_ENV === "production"
+      ? Environment.Production
+      : Environment.Integration
+  )
+);
+
+// ================================
+// CALCULAR DISTANCIA REAL CON GOOGLE MAPS
+// ================================
+async function calcularDistancia(inicio, destino) {
+  const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(inicio)}&destinations=${encodeURIComponent(destino)}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+  const resp = await fetch(url);
+  const data = await resp.json();
+  if(data.rows && data.rows[0].elements[0].status === "OK") {
+    return data.rows[0].elements[0].distance.value / 1000; // km
+  }
+  return null;
+}
+
+// ================================
+// FUNCIÓN HORARIO ESTIMADO
+// ================================
+function calcularMensajeHorario() {
+  const ahora = new Date();
+  const dia = ahora.getDay();
+  const hora = ahora.getHours();
+  const minuto = ahora.getMinutes();
+  const minutosActuales = hora*60+minuto;
+  const apertura=9*60;
+  const cierre=17*60;
+  const limiteRespuesta=15*60+40;
+  const tiempoRespuesta=80;
+
+  if(dia===0) return "Domingo: cotización recibida. Te responderemos el lunes desde las 9:00 AM.";
+  if(minutosActuales<apertura) return "Estamos fuera de horario. Te responderemos desde las 9:00 AM.";
+  if(minutosActuales>cierre) return "Fuera de horario. Te responderemos mañana desde las 9:00 AM.";
+  if(minutosActuales>limiteRespuesta) return "Cotización recibida. Te confirmaremos disponibilidad mañana temprano.";
+
+  const respuesta=new Date(ahora.getTime()+tiempoRespuesta*60000);
+  return `Tiempo estimado de respuesta: ${respuesta.getHours()}:${respuesta.getMinutes().toString().padStart(2,"0")} hrs.`;
+}
+
+// ================================
+// ENDPOINT COTIZAR
+// ================================
+app.post("/cotizar", async (req,res)=>{
+  const {inicio,destino}=req.body;
+  if(!inicio || !destino) return res.json({error:"Faltan direcciones"});
+
+  const distancia_km = await calcularDistancia(inicio,destino);
+  if(distancia_km===null) return res.json({error:"No se pudo calcular distancia"});
+
+  const valor_base = 5000; // o según tu tarifa por km
+  const iva = Math.round(valor_base*0.19);
+  const total = valor_base + iva;
+
+  res.json({
+    inicio,destino,
+    distancia_km,
+    valor_base,
+    iva,
+    total,
+    mensajeHorario: calcularMensajeHorario()
+  });
+});
+
+// ================================
+// ENVIAR COTIZACIÓN POR CORREO
+// ================================
+app.post("/enviar-cotizacion", async (req,res)=>{
+  const {nombre,telefono,email,distancia_km,valor_base,iva,total,mensajeHorario}=req.body;
+
+  if(!nombre || !telefono || !email) return res.status(400).json({error:"Faltan datos del cliente"});
+
+  await resend.emails.send({
+    from: "TuMotoExpress <cotizacion@tumotoexpress.cl>",
+    to: email,
+    subject:"Cotización TuMotoExpress.cl - Consulta disponibilidad de servicio",
+    html: `
+      <h2>Cotización TuMotoExpress.cl</h2>
+      <p><strong>Nombre:</strong> ${nombre}</p>
+      <p><strong>Teléfono:</strong> ${telefono}</p>
+      <hr>
+      <p><strong>Distancia:</strong> ${distancia_km.toFixed(2)} km</p>
+      <p><strong>Valor Servicio:</strong> $${valor_base}</p>
+      <p><strong>IVA:</strong> $${iva}</p>
+      <p><strong>Total:</strong> $${total}</p>
+      <hr>
+      <p><strong>Disponibilidad:</strong> ${mensajeHorario}</p>
+      <p>Gracias por confiar en TuMotoExpress.cl</p>
+    `
+  });
+
+  res.json({ok:true});
+});
+
+// ================================
+// CREAR TRANSACCIÓN WEBPAY
+// ================================
+app.post("/crear-transaccion", async (req,res)=>{
+  const {nombre,telefono,email,distancia_km} = req.body;
+
+  // Calcular total seguro en backend
+  const valor_base = 5000;
+  const iva = Math.round(valor_base*0.19);
+  const total_calculado = valor_base + iva;
+
+  const buyOrder = "orden_"+Date.now();
+  const sessionId = "sesion_"+Date.now();
+  const returnUrl = process.env.BASE_URL+"/confirmacion?email="+encodeURIComponent(email);
+
+  const response = await tx.create(buyOrder, sessionId, total_calculado, returnUrl);
+  res.json(response);
+});
+
+// ================================
+// CONFIRMACIÓN WEBPAY
+// ================================
+app.post("/confirmacion", async (req,res)=>{
+  const token_ws = req.body.token_ws || req.query.token_ws;
+  const clienteEmail = req.query.email;
+
+  const response = await tx.commit(token_ws);
+
+  if(response.status==="AUTHORIZED" && clienteEmail){
+    await resend.emails.send({
+      from: "TuMotoExpress.cl <contacto@tumotoexpress.cl>",
+      to: clienteEmail,
+      subject:"Pago confirmado - TuMotoExpress.cl",
+      html: `<h2>Pago confirmado</h2>
+             <p>Tu pago fue confirmado exitosamente.</p>
+             <p>En unos minutos coordinaremos tu servicio.</p>`
+    });
+  }
+
+  res.json(response);
+});
+
+// ================================
+// SERVER
+// ================================
+const PORT = process.env.PORT || 3000;
+app.listen(PORT,()=>console.log("Servidor corriendo en puerto",PORT));

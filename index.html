@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Cotizador TuMotoExpress.cl</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+/* ...mantengo tu estilo original... */
+body { margin:0; font-family:'Segoe UI', sans-serif; background:#f5f6fa; display:flex; justify-content:center; align-items:center; min-height:100vh; }
+.container { background:white; padding:40px; border-radius:20px; max-width:480px; width:95%; box-shadow:0 25px 60px rgba(0,0,0,0.2); text-align:center; }
+input { width:100%; padding:16px; margin:12px 0; border-radius:12px; border:1px solid #ccc; font-size:16px; }
+button { width:100%; padding:16px; margin-top:10px; border-radius:12px; border:none; font-size:16px; cursor:pointer; font-weight:bold; }
+.btn-cotizar { background:#111;color:white; }
+.btn-email { background:#111;color:white; }
+.btn-pagar { background:#2e86de;color:white; }
+.spinner { border:5px solid #f3f3f3; border-top:5px solid #111; border-radius:50%; width:40px; height:40px; animation:spin 1s linear infinite; margin:20px auto; display:none; }
+@keyframes spin { 0%{transform:rotate(0deg);}100%{transform:rotate(360deg);} }
+.modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:none; justify-content:center; align-items:center; z-index:999; }
+.modal-content { background:white; padding:30px; border-radius:20px; max-width:450px; width:95%; text-align:left; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h2>🚀 Cotizador TuMotoExpress.cl</h2>
+  <input type="text" id="inicio" placeholder="Dirección de origen">
+  <input type="text" id="destino" placeholder="Dirección de destino">
+  <button class="btn-cotizar" onclick="cotizar()">Cotizar</button>
+  <div class="spinner" id="spinner"></div>
+  <div id="resultado"></div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modal-content">
+    <h3>Datos del cliente</h3>
+    <input type="text" id="nombre" placeholder="Nombre completo">
+    <input type="text" id="telefono" placeholder="Teléfono">
+    <input type="email" id="email" placeholder="Correo electrónico">
+    <button class="btn-email" id="btnEnviar" onclick="enviarCotizacion()">Enviar cotización</button>
+    <button class="btn-pagar" id="btnPagar" onclick="pagarAhora()" disabled>Pagar ahora</button>
+  </div>
+</div>
+
+<script>
+let ultimaCotizacion = null;
+
+async function cotizar(){
+  const inicio = document.getElementById("inicio").value;
+  const destino = document.getElementById("destino").value;
+  if(!inicio || !destino){ alert("Completa origen y destino"); return; }
+
+  const spinner = document.getElementById("spinner");
+  spinner.style.display="block";
+
+  const response = await fetch("/cotizar",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({inicio,destino})});
+  const data = await response.json();
+  spinner.style.display="none";
+
+  if(data.error){ alert(data.error); return; }
+
+  ultimaCotizacion = data;
+  document.getElementById("resultado").innerHTML = `<strong>Distancia:</strong> ${data.distancia_km.toFixed(2)} km<br><strong>Total:</strong> $${data.total}`;
+  document.getElementById("modal").style.display="flex";
+  validarCamposModal();
+}
+
+function validarDatos(){
+  const nombre=document.getElementById("nombre").value.trim();
+  const telefono=document.getElementById("telefono").value.trim();
+  const email=document.getElementById("email").value.trim();
+  if(!nombre || !telefono || !email){ alert("Completa todos los campos"); return null; }
+  return {nombre,telefono,email};
+}
+
+function validarCamposModal(){
+  const nombre=document.getElementById("nombre").value.trim();
+  const telefono=document.getElementById("telefono").value.trim();
+  const email=document.getElementById("email").value.trim();
+  const btnPagar=document.getElementById("btnPagar");
+  btnPagar.disabled = !(nombre && telefono && email);
+}
+
+document.getElementById("nombre").addEventListener("input",validarCamposModal);
+document.getElementById("telefono").addEventListener("input",validarCamposModal);
+document.getElementById("email").addEventListener("input",validarCamposModal);
+
+async function enviarCotizacion(){
+  const datos=validarDatos();
+  if(!datos) return;
+  await fetch("/enviar-cotizacion",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({...datos,...ultimaCotizacion})});
+  alert("Cotización enviada al correo.");
+}
+
+async function pagarAhora(){
+  const datos=validarDatos();
+  if(!datos) return;
+  const response=await fetch("/crear-transaccion",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({...datos,...ultimaCotizacion})});
+  const data=await response.json();
+  const form = document.createElement("form");
+  form.method="POST";
+  form.action = data.url;
+  const input = document.createElement("input");
+  input.type="hidden";
+  input.name="token_ws";
+  input.value=data.token_ws;
+  form.appendChild(input);
+  document.body.appendChild(form);
+  form.submit();
+}
+</script>
+</body>
+</html>
