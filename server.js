@@ -28,10 +28,14 @@ const tx = new WebpayPlus.Transaction(
 // ================================
 async function calcularDistancia(inicio, destino) {
   const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(inicio)}&destinations=${encodeURIComponent(destino)}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
-  const resp = await fetch(url);
-  const data = await resp.json();
-  if(data.rows && data.rows[0].elements[0].status === "OK") {
-    return data.rows[0].elements[0].distance.value / 1000; // km
+  try {
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if(data.rows && data.rows[0].elements[0].status === "OK") {
+      return data.rows[0].elements[0].distance.value / 1000; // km
+    }
+  } catch(e){
+    console.error("Error al calcular distancia:", e);
   }
   return null;
 }
@@ -69,7 +73,7 @@ app.post("/cotizar", async (req,res)=>{
   const distancia_km = await calcularDistancia(inicio,destino);
   if(distancia_km===null) return res.json({error:"No se pudo calcular distancia"});
 
-  const valor_base = 5000; // o según tu tarifa por km
+  const valor_base = 5000;
   const iva = Math.round(valor_base*0.19);
   const total = valor_base + iva;
 
@@ -91,26 +95,30 @@ app.post("/enviar-cotizacion", async (req,res)=>{
 
   if(!nombre || !telefono || !email) return res.status(400).json({error:"Faltan datos del cliente"});
 
-  await resend.emails.send({
-    from: "TuMotoExpress <cotizacion@tumotoexpress.cl>",
-    to: email,
-    subject:"Cotización TuMotoExpress.cl - Consulta disponibilidad de servicio",
-    html: `
-      <h2>Cotización TuMotoExpress.cl</h2>
-      <p><strong>Nombre:</strong> ${nombre}</p>
-      <p><strong>Teléfono:</strong> ${telefono}</p>
-      <hr>
-      <p><strong>Distancia:</strong> ${distancia_km.toFixed(2)} km</p>
-      <p><strong>Valor Servicio:</strong> $${valor_base}</p>
-      <p><strong>IVA:</strong> $${iva}</p>
-      <p><strong>Total:</strong> $${total}</p>
-      <hr>
-      <p><strong>Disponibilidad:</strong> ${mensajeHorario}</p>
-      <p>Gracias por confiar en TuMotoExpress.cl</p>
-    `
-  });
-
-  res.json({ok:true});
+  try {
+    await resend.emails.send({
+      from: "TuMotoExpress <cotizacion@tumotoexpress.cl>",
+      to: email,
+      subject:"Cotización TuMotoExpress.cl - Consulta disponibilidad de servicio",
+      html: `
+        <h2>Cotización TuMotoExpress.cl</h2>
+        <p><strong>Nombre:</strong> ${nombre}</p>
+        <p><strong>Teléfono:</strong> ${telefono}</p>
+        <hr>
+        <p><strong>Distancia:</strong> ${distancia_km.toFixed(2)} km</p>
+        <p><strong>Valor Servicio:</strong> $${valor_base}</p>
+        <p><strong>IVA:</strong> $${iva}</p>
+        <p><strong>Total:</strong> $${total}</p>
+        <hr>
+        <p><strong>Disponibilidad:</strong> ${mensajeHorario}</p>
+        <p>Gracias por confiar en TuMotoExpress.cl</p>
+      `
+    });
+    res.json({ok:true});
+  } catch(e){
+    console.error("Error enviando correo:", e);
+    res.status(500).json({error:"No se pudo enviar correo"});
+  }
 });
 
 // ================================
@@ -119,7 +127,6 @@ app.post("/enviar-cotizacion", async (req,res)=>{
 app.post("/crear-transaccion", async (req,res)=>{
   const {nombre,telefono,email,distancia_km} = req.body;
 
-  // Calcular total seguro en backend
   const valor_base = 5000;
   const iva = Math.round(valor_base*0.19);
   const total_calculado = valor_base + iva;
@@ -128,8 +135,13 @@ app.post("/crear-transaccion", async (req,res)=>{
   const sessionId = "sesion_"+Date.now();
   const returnUrl = process.env.BASE_URL+"/confirmacion?email="+encodeURIComponent(email);
 
-  const response = await tx.create(buyOrder, sessionId, total_calculado, returnUrl);
-  res.json(response);
+  try {
+    const response = await tx.create(buyOrder, sessionId, total_calculado, returnUrl);
+    res.json(response);
+  } catch(e){
+    console.error("Error creando transacción:", e);
+    res.status(500).json({error:"No se pudo crear transacción"});
+  }
 });
 
 // ================================
@@ -139,20 +151,26 @@ app.post("/confirmacion", async (req,res)=>{
   const token_ws = req.body.token_ws || req.query.token_ws;
   const clienteEmail = req.query.email;
 
-  const response = await tx.commit(token_ws);
+  if(!token_ws) return res.status(400).json({error:"token_ws faltante"});
 
-  if(response.status==="AUTHORIZED" && clienteEmail){
-    await resend.emails.send({
-      from: "TuMotoExpress.cl <contacto@tumotoexpress.cl>",
-      to: clienteEmail,
-      subject:"Pago confirmado - TuMotoExpress.cl",
-      html: `<h2>Pago confirmado</h2>
-             <p>Tu pago fue confirmado exitosamente.</p>
-             <p>En unos minutos coordinaremos tu servicio.</p>`
-    });
+  try {
+    const response = await tx.commit(token_ws);
+
+    if(response.status==="AUTHORIZED" && clienteEmail){
+      await resend.emails.send({
+        from: "TuMotoExpress.cl <contacto@tumotoexpress.cl>",
+        to: clienteEmail,
+        subject:"Pago confirmado - TuMotoExpress.cl",
+        html: `<h2>Pago confirmado</h2>
+               <p>Tu pago fue confirmado exitosamente.</p>
+               <p>En unos minutos coordinaremos tu servicio.</p>`
+      });
+    }
+    res.json(response);
+  } catch(e){
+    console.error("Error en confirmación Webpay:", e);
+    res.status(500).json({error:"No se pudo confirmar pago"});
   }
-
-  res.json(response);
 });
 
 // ================================
