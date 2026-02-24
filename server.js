@@ -1,7 +1,6 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-// const fetch = require("node-fetch"); // Eliminado para usar fetch global
 const { Resend } = require('resend');
 const { WebpayPlus, Options, Environment } = require("transbank-sdk");
 
@@ -24,17 +23,18 @@ const tx = new WebpayPlus.Transaction(
 );
 
 // ================================
-// CALCULAR DISTANCIA REAL CON GOOGLE MAPS
+// CALCULAR DISTANCIA REAL CON GOOGLE MAPS (fetch global de Node 18+)
 // ================================
 async function calcularDistancia(inicio, destino) {
   const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(inicio)}&destinations=${encodeURIComponent(destino)}&region=CL&key=${process.env.GOOGLE_MAPS_API_KEY}`;
   try {
-    const resp = await fetch(url); // fetch global
+    const resp = await fetch(url); // fetch global de Node 18+
     const data = await resp.json();
-    if(data.rows && data.rows[0].elements[0].status === "OK") {
+    if (data.rows && data.rows[0].elements[0].status === "OK") {
       return data.rows[0].elements[0].distance.value / 1000; // km
     }
-  } catch(e){
+    console.error("Google Maps error:", data);
+  } catch (e) {
     console.error("Error al calcular distancia:", e);
   }
   return null;
@@ -48,37 +48,38 @@ function calcularMensajeHorario() {
   const dia = ahora.getDay();
   const hora = ahora.getHours();
   const minuto = ahora.getMinutes();
-  const minutosActuales = hora*60+minuto;
-  const apertura=9*60;
-  const cierre=17*60;
-  const limiteRespuesta=15*60+40;
-  const tiempoRespuesta=80;
+  const minutosActuales = hora * 60 + minuto;
+  const apertura = 9 * 60;
+  const cierre = 17 * 60;
+  const limiteRespuesta = 15 * 60 + 40;
+  const tiempoRespuesta = 80;
 
-  if(dia===0) return "Domingo: cotización recibida. Te responderemos el lunes desde las 9:00 AM.";
-  if(minutosActuales<apertura) return "Estamos fuera de horario. Te responderemos desde las 9:00 AM.";
-  if(minutosActuales>cierre) return "Fuera de horario. Te responderemos mañana desde las 9:00 AM.";
-  if(minutosActuales>limiteRespuesta) return "Cotización recibida. Te confirmaremos disponibilidad mañana temprano.";
+  if (dia === 0) return "Domingo: cotización recibida. Te responderemos el lunes desde las 9:00 AM.";
+  if (minutosActuales < apertura) return "Estamos fuera de horario. Te responderemos desde las 9:00 AM.";
+  if (minutosActuales > cierre) return "Fuera de horario. Te responderemos mañana desde las 9:00 AM.";
+  if (minutosActuales > limiteRespuesta) return "Cotización recibida. Te confirmaremos disponibilidad mañana temprano.";
 
-  const respuesta=new Date(ahora.getTime()+tiempoRespuesta*60000);
-  return `Tiempo estimado de respuesta: ${respuesta.getHours()}:${respuesta.getMinutes().toString().padStart(2,"0")} hrs.`;
+  const respuesta = new Date(ahora.getTime() + tiempoRespuesta * 60000);
+  return `Tiempo estimado de respuesta: ${respuesta.getHours()}:${respuesta.getMinutes().toString().padStart(2, "0")} hrs.`;
 }
 
 // ================================
 // ENDPOINT COTIZAR
 // ================================
-app.post("/cotizar", async (req,res)=>{
-  const {inicio,destino}=req.body;
-  if(!inicio || !destino) return res.json({error:"Faltan direcciones"});
+app.post("/cotizar", async (req, res) => {
+  const { inicio, destino } = req.body;
+  if (!inicio || !destino) return res.json({ error: "Faltan direcciones" });
 
-  const distancia_km = await calcularDistancia(inicio,destino);
-  if(distancia_km===null) return res.json({error:"No se pudo calcular distancia"});
+  const distancia_km = await calcularDistancia(inicio, destino);
+  if (distancia_km === null) return res.json({ error: "No se pudo calcular distancia" });
 
   const valor_base = 5000;
-  const iva = Math.round(valor_base*0.19);
+  const iva = Math.round(valor_base * 0.19);
   const total = valor_base + iva;
 
   res.json({
-    inicio,destino,
+    inicio,
+    destino,
     distancia_km,
     valor_base,
     iva,
@@ -90,16 +91,15 @@ app.post("/cotizar", async (req,res)=>{
 // ================================
 // ENVIAR COTIZACIÓN POR CORREO
 // ================================
-app.post("/enviar-cotizacion", async (req,res)=>{
-  const {nombre,telefono,email,distancia_km,valor_base,iva,total,mensajeHorario}=req.body;
-
-  if(!nombre || !telefono || !email) return res.status(400).json({error:"Faltan datos del cliente"});
+app.post("/enviar-cotizacion", async (req, res) => {
+  const { nombre, telefono, email, distancia_km, valor_base, iva, total, mensajeHorario } = req.body;
+  if (!nombre || !telefono || !email) return res.status(400).json({ error: "Faltan datos del cliente" });
 
   try {
     await resend.emails.send({
       from: "TuMotoExpress <contacto@tumotoexpress.cl>",
       to: email,
-      subject:"Cotización TuMotoExpress.cl - Consulta disponibilidad de servicio",
+      subject: "Cotización TuMotoExpress.cl - Consulta disponibilidad de servicio",
       html: `
         <h2>Cotización TuMotoExpress.cl</h2>
         <p><strong>Nombre:</strong> ${nombre}</p>
@@ -114,62 +114,61 @@ app.post("/enviar-cotizacion", async (req,res)=>{
         <p>Gracias por confiar en TuMotoExpress.cl</p>
       `
     });
-    res.json({ok:true});
-  } catch(e){
+    res.json({ ok: true });
+  } catch (e) {
     console.error("Error enviando correo:", e);
-    res.status(500).json({error:"No se pudo enviar correo"});
+    res.status(500).json({ error: "No se pudo enviar correo" });
   }
 });
 
 // ================================
 // CREAR TRANSACCIÓN WEBPAY
 // ================================
-app.post("/crear-transaccion", async (req,res)=>{
-  const {nombre,telefono,email,distancia_km} = req.body;
-
+app.post("/crear-transaccion", async (req, res) => {
+  const { nombre, telefono, email, distancia_km } = req.body;
   const valor_base = 5000;
-  const iva = Math.round(valor_base*0.19);
+  const iva = Math.round(valor_base * 0.19);
   const total_calculado = valor_base + iva;
 
-  const buyOrder = "orden_"+Date.now();
-  const sessionId = "sesion_"+Date.now();
-  const returnUrl = process.env.BASE_URL+"/confirmacion?email="+encodeURIComponent(email);
+  const buyOrder = "orden_" + Date.now();
+  const sessionId = "sesion_" + Date.now();
+  const returnUrl = process.env.BASE_URL + "/confirmacion?email=" + encodeURIComponent(email);
 
   try {
     const response = await tx.create(buyOrder, sessionId, total_calculado, returnUrl);
     res.json(response);
-  } catch(e){
+  } catch (e) {
     console.error("Error creando transacción:", e);
-    res.status(500).json({error:"No se pudo crear transacción"});
+    res.status(500).json({ error: "No se pudo crear transacción" });
   }
 });
 
 // ================================
 // CONFIRMACIÓN WEBPAY
 // ================================
-app.post("/confirmacion", async (req,res)=>{
+app.post("/confirmacion", async (req, res) => {
   const token_ws = req.body.token_ws || req.query.token_ws;
   const clienteEmail = req.query.email;
 
-  if(!token_ws) return res.status(400).json({error:"token_ws faltante"});
+  if (!token_ws) return res.status(400).json({ error: "token_ws faltante" });
 
   try {
     const response = await tx.commit(token_ws);
 
-    if(response.status==="AUTHORIZED" && clienteEmail){
+    if (response.status === "AUTHORIZED" && clienteEmail) {
       await resend.emails.send({
         from: "TuMotoExpress.cl <contacto@tumotoexpress.cl>",
         to: clienteEmail,
-        subject:"Pago confirmado - TuMotoExpress.cl",
+        subject: "Pago confirmado - TuMotoExpress.cl",
         html: `<h2>Pago confirmado</h2>
                <p>Tu pago fue confirmado exitosamente.</p>
                <p>En unos minutos coordinaremos tu servicio.</p>`
       });
     }
     res.json(response);
-  } catch(e){
+  } catch (e) {
     console.error("Error en confirmación Webpay:", e);
-    res.status(500).json({error:"No se pudo confirmar pago"});
+    res.status(500).json({ error: "No se pudo confirmar pago" });
   }
 });
 
@@ -177,4 +176,4 @@ app.post("/confirmacion", async (req,res)=>{
 // SERVER
 // ================================
 const PORT = process.env.PORT || 3000;
-app.listen(PORT,()=>console.log("Servidor corriendo en puerto",PORT));
+app.listen(PORT, () => console.log("Servidor corriendo en puerto", PORT));
