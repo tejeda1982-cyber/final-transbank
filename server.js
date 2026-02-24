@@ -1,7 +1,7 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const fetch = require("node-fetch");
+// const fetch = require("node-fetch"); // Eliminado para usar fetch global
 const { Resend } = require('resend');
 const { WebpayPlus, Options, Environment } = require("transbank-sdk");
 
@@ -29,7 +29,7 @@ const tx = new WebpayPlus.Transaction(
 async function calcularDistancia(inicio, destino) {
   const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(inicio)}&destinations=${encodeURIComponent(destino)}&region=CL&key=${process.env.GOOGLE_MAPS_API_KEY}`;
   try {
-    const resp = await fetch(url);
+    const resp = await fetch(url); // fetch global
     const data = await resp.json();
     if(data.rows && data.rows[0].elements[0].status === "OK") {
       return data.rows[0].elements[0].distance.value / 1000; // km
