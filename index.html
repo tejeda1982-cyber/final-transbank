@@ -1,142 +1,511 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Cotizador TuMotoExpress.cl</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-body { margin:0; font-family:'Segoe UI', sans-serif; background:#f5f6fa; display:flex; justify-content:center; align-items:center; min-height:100vh; }
-.container { background:white; padding:40px; border-radius:20px; max-width:480px; width:95%; box-shadow:0 25px 60px rgba(0,0,0,0.2); text-align:center; }
-input { width:100%; padding:16px; margin:12px 0; border-radius:12px; border:1px solid #ccc; font-size:16px; }
-button { width:100%; padding:16px; margin-top:10px; border-radius:12px; border:none; font-size:16px; cursor:pointer; font-weight:bold; }
-.btn-cotizar { background:#111;color:white; }
-.btn-email { background:#111;color:white; }
-.btn-pagar { background:#2e86de;color:white; }
-.spinner { border:5px solid #f3f3f3; border-top:5px solid #111; border-radius:50%; width:40px; height:40px; animation:spin 1s linear infinite; margin:20px auto; display:none; }
-@keyframes spin { 0%{transform:rotate(0deg);}100%{transform:rotate(360deg);} }
-.modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:none; justify-content:center; align-items:center; z-index:999; }
-.modal-content { background:white; padding:30px; border-radius:20px; max-width:450px; width:95%; text-align:left; }
-</style>
+  <meta charset="UTF-8">
+  <title>Cotizador TuMotoExpress.cl</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      padding: 40px;
+      border-radius: 20px;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+      text-align: center;
+    }
+
+    h2 {
+      color: #111;
+      margin-bottom: 30px;
+      font-size: 28px;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px;
+      margin: 10px 0;
+      border-radius: 10px;
+      border: 2px solid #e0e0e0;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 10px;
+      border-radius: 10px;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+
+    .btn-cotizar {
+      background: #111;
+      color: white;
+    }
+
+    .btn-cotizar:hover:not(:disabled) {
+      background: #333;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn-email {
+      background: #667eea;
+      color: white;
+    }
+
+    .btn-email:hover:not(:disabled) {
+      background: #5568d3;
+    }
+
+    .btn-pagar {
+      background: #2e86de;
+      color: white;
+    }
+
+    .btn-pagar:hover:not(:disabled) {
+      background: #1e6fb0;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+      display: none;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+      padding: 20px;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      max-width: 450px;
+      width: 100%;
+      text-align: left;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateY(-50px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    .modal-content h3 {
+      margin-bottom: 20px;
+      color: #111;
+    }
+
+    .modal-content input {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: 2px solid #e0e0e0;
+    }
+
+    .resultado {
+      background: #f0f4ff;
+      padding: 20px;
+      border-radius: 12px;
+      margin: 20px 0;
+      text-align: left;
+      border-left: 4px solid #667eea;
+    }
+
+    .resultado p {
+      margin: 8px 0;
+      color: #333;
+    }
+
+    .error {
+      background: #ffe0e0;
+      color: #c00;
+      padding: 12px;
+      border-radius: 8px;
+      margin: 10px 0;
+      display: none;
+      border-left: 4px solid #c00;
+    }
+
+    .success {
+      background: #e0ffe0;
+      color: #0a0;
+      padding: 12px;
+      border-radius: 8px;
+      margin: 10px 0;
+      display: none;
+      border-left: 4px solid #0a0;
+    }
+
+    .close-btn {
+      float: right;
+      font-size: 24px;
+      cursor: pointer;
+      color: #999;
+    }
+
+    .close-btn:hover {
+      color: #111;
+    }
+  </style>
 </head>
 <body>
 
-<div class="container">
-  <h2>🚀 Cotizador TuMotoExpress.cl</h2>
-  <input type="text" id="inicio" placeholder="Dirección de origen">
-  <input type="text" id="destino" placeholder="Dirección de destino">
-  <button class="btn-cotizar" onclick="cotizar()">Cotizar</button>
-  <div class="spinner" id="spinner"></div>
-  <div id="resultado"></div>
-</div>
+  <div class="container">
+    <h2>🚀 Cotizador TuMotoExpress.cl</h2>
+    
+    <div class="error" id="errorMain"></div>
+    <div class="success" id="successMain"></div>
 
-<div class="modal" id="modal">
-  <div class="modal-content">
-    <h3>Datos del cliente</h3>
-    <input type="text" id="nombre" placeholder="Nombre completo">
-    <input type="text" id="telefono" placeholder="Teléfono">
-    <input type="email" id="email" placeholder="Correo electrónico">
-    <button class="btn-email" id="btnEnviar" onclick="enviarCotizacion()">Enviar cotización</button>
-    <button class="btn-pagar" id="btnPagar" onclick="pagarAhora()" disabled>Pagar ahora</button>
+    <input type="text" id="inicio" placeholder="📍 Dirección de origen" autocomplete="off">
+    <input type="text" id="destino" placeholder="📍 Dirección de destino" autocomplete="off">
+    
+    <button class="btn-cotizar" onclick="cotizar()">Cotizar</button>
+    
+    <div class="spinner" id="spinner"></div>
+    <div id="resultado"></div>
   </div>
-</div>
 
-<!-- Carga la librería de Google Maps Places -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD7ExvZ0pJBjs37LHwbOcWrUqpxg_V78mk&libraries=places&language=es"></script>
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <span class="close-btn" onclick="cerrarModal()">&times;</span>
+      <h3>📋 Datos del cliente</h3>
+      
+      <div class="error" id="errorModal"></div>
 
-<script>
-let ultimaCotizacion = null;
+      <input type="text" id="nombre" placeholder="Nombre completo" autocomplete="off">
+      <input type="tel" id="telefono" placeholder="Teléfono (ej: +56912345678)" autocomplete="off">
+      <input type="email" id="email" placeholder="Correo electrónico" autocomplete="off">
+      
+      <button class="btn-email" id="btnEnviar" onclick="enviarCotizacion()">📧 Enviar cotización por correo</button>
+      <button class="btn-pagar" id="btnPagar" onclick="pagarAhora()" disabled>💳 Pagar ahora con WebPay</button>
+    </div>
+  </div>
 
-// Inicializar Autocomplete solo para Santiago, Chile
-function initAutocomplete() {
-  const santiagoBounds = new google.maps.LatLngBounds(
-    new google.maps.LatLng(-33.75, -70.95), // suroeste
-    new google.maps.LatLng(-33.35, -70.45)  // noreste
-  );
+  <!-- Carga la librería de Google Maps Places -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD7ExvZ0pJBjs37LHwbOcWrUqpxg_V78mk&libraries=places&language=es"></script>
 
-  const inputInicio = document.getElementById("inicio");
-  const autocompleteInicio = new google.maps.places.Autocomplete(inputInicio, {
-    bounds: santiagoBounds,
-    componentRestrictions: { country: "cl" },
-    fields: ["formatted_address", "geometry"],
-    strictBounds: false
-  });
+  <script>
+    // ✅ Configuración de URL del backend - AUTOMÁTICA
+    const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:3000'
+      : `${window.location.protocol}//${window.location.host}`;
 
-  const inputDestino = document.getElementById("destino");
-  const autocompleteDestino = new google.maps.places.Autocomplete(inputDestino, {
-    bounds: santiagoBounds,
-    componentRestrictions: { country: "cl" },
-    fields: ["formatted_address", "geometry"],
-    strictBounds: false
-  });
-}
+    let ultimaCotizacion = null;
 
-// Llamar al cargar la página
-window.onload = initAutocomplete;
+    // ================================
+    // INICIALIZAR AUTOCOMPLETE
+    // ================================
+    function initAutocomplete() {
+      const santiagoBounds = new google.maps.LatLngBounds(
+        new google.maps.LatLng(-33.75, -70.95),
+        new google.maps.LatLng(-33.35, -70.45)
+      );
 
-// Cotización
-async function cotizar(){
-  const inicio = document.getElementById("inicio").value;
-  const destino = document.getElementById("destino").value;
-  if(!inicio || !destino){ alert("Completa origen y destino"); return; }
+      const inputInicio = document.getElementById("inicio");
+      const autocompleteInicio = new google.maps.places.Autocomplete(inputInicio, {
+        bounds: santiagoBounds,
+        componentRestrictions: { country: "cl" },
+        fields: ["formatted_address", "geometry"],
+        strictBounds: false
+      });
 
-  const spinner = document.getElementById("spinner");
-  spinner.style.display="block";
+      const inputDestino = document.getElementById("destino");
+      const autocompleteDestino = new google.maps.places.Autocomplete(inputDestino, {
+        bounds: santiagoBounds,
+        componentRestrictions: { country: "cl" },
+        fields: ["formatted_address", "geometry"],
+        strictBounds: false
+      });
+    }
 
-  const response = await fetch("/cotizar",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({inicio,destino})});
-  const data = await response.json();
-  spinner.style.display="none";
+    window.addEventListener('load', initAutocomplete);
 
-  if(data.error){ alert(data.error); return; }
+    // ================================
+    // FUNCIONES AUXILIARES
+    // ================================
+    function mostrarError(mensaje, modal = false) {
+      const elemento = modal ? document.getElementById("errorModal") : document.getElementById("errorMain");
+      elemento.textContent = mensaje;
+      elemento.style.display = "block";
+      setTimeout(() => {
+        elemento.style.display = "none";
+      }, 5000);
+    }
 
-  ultimaCotizacion = data;
-  document.getElementById("resultado").innerHTML = `<strong>Distancia:</strong> ${data.distancia_km.toFixed(2)} km<br><strong>Total:</strong> $${data.total}`;
-  document.getElementById("modal").style.display="flex";
-  validarCamposModal();
-}
+    function mostrarExito(mensaje) {
+      const elemento = document.getElementById("successMain");
+      elemento.textContent = mensaje;
+      elemento.style.display = "block";
+      setTimeout(() => {
+        elemento.style.display = "none";
+      }, 5000);
+    }
 
-function validarDatos(){
-  const nombre=document.getElementById("nombre").value.trim();
-  const telefono=document.getElementById("telefono").value.trim();
-  const email=document.getElementById("email").value.trim();
-  if(!nombre || !telefono || !email){ alert("Completa todos los campos"); return null; }
-  return {nombre,telefono,email};
-}
+    function cerrarModal() {
+      document.getElementById("modal").style.display = "none";
+    }
 
-function validarCamposModal(){
-  const nombre=document.getElementById("nombre").value.trim();
-  const telefono=document.getElementById("telefono").value.trim();
-  const email=document.getElementById("email").value.trim();
-  const btnPagar=document.getElementById("btnPagar");
-  btnPagar.disabled = !(nombre && telefono && email);
-}
+    // ================================
+    // COTIZACIÓN
+    // ================================
+    async function cotizar() {
+      const inicio = document.getElementById("inicio").value.trim();
+      const destino = document.getElementById("destino").value.trim();
 
-document.getElementById("nombre").addEventListener("input",validarCamposModal);
-document.getElementById("telefono").addEventListener("input",validarCamposModal);
-document.getElementById("email").addEventListener("input",validarCamposModal);
+      if (!inicio || !destino) {
+        mostrarError("Por favor, completa origen y destino");
+        return;
+      }
 
-async function enviarCotizacion(){
-  const datos=validarDatos();
-  if(!datos) return;
-  await fetch("/enviar-cotizacion",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({...datos,...ultimaCotizacion})});
-  alert("Cotización enviada al correo.");
-}
+      const spinner = document.getElementById("spinner");
+      spinner.style.display = "block";
 
-async function pagarAhora(){
-  const datos=validarDatos();
-  if(!datos) return;
-  const response=await fetch("/crear-transaccion",{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({...datos,...ultimaCotizacion})});
-  const data=await response.json();
-  const form = document.createElement("form");
-  form.method="POST";
-  form.action = data.url;
-  const input = document.createElement("input");
-  input.type="hidden";
-  input.name="token_ws";
-  input.value=data.token_ws;
-  form.appendChild(input);
-  document.body.appendChild(form);
-  form.submit();
-}
-</script>
+      try {
+        const response = await fetch(`${API_BASE_URL}/cotizar`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ inicio, destino })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error del servidor: ${response.status}`);
+        }
+
+        const data = await response.json();
+        spinner.style.display = "none";
+
+        if (data.error) {
+          mostrarError(data.error);
+          return;
+        }
+
+        ultimaCotizacion = data;
+        mostrarResultado(data);
+        document.getElementById("modal").style.display = "flex";
+        validarCamposModal();
+
+      } catch (error) {
+        spinner.style.display = "none";
+        console.error("Error en cotización:", error);
+        mostrarError("Error al calcular la cotización. Intenta de nuevo.");
+      }
+    }
+
+    function mostrarResultado(data) {
+      const resultDiv = document.getElementById("resultado");
+      resultDiv.innerHTML = `
+        <div class="resultado">
+          <p><strong>📍 Origen:</strong> ${data.inicio}</p>
+          <p><strong>📍 Destino:</strong> ${data.destino}</p>
+          <p><strong>📐 Distancia:</strong> ${data.distancia_km.toFixed(2)} km</p>
+          <p><strong>💰 Valor Servicio:</strong> $${data.valor_base.toLocaleString()}</p>
+          <p><strong>📊 IVA (19%):</strong> $${data.iva.toLocaleString()}</p>
+          <p style="font-size: 18px; color: #667eea; margin-top: 10px;">
+            <strong>💵 Total:</strong> $${data.total.toLocaleString()}
+          </p>
+          <p style="font-size: 12px; color: #999; margin-top: 10px;">
+            ${data.mensajeHorario}
+          </p>
+        </div>
+      `;
+    }
+
+    // ================================
+    // VALIDAR CAMPOS MODAL
+    // ================================
+    function validarDatos() {
+      const nombre = document.getElementById("nombre").value.trim();
+      const telefono = document.getElementById("telefono").value.trim();
+      const email = document.getElementById("email").value.trim();
+
+      if (!nombre) {
+        mostrarError("Por favor, ingresa tu nombre", true);
+        return null;
+      }
+
+      if (!telefono) {
+        mostrarError("Por favor, ingresa tu teléfono", true);
+        return null;
+      }
+
+      if (!email || !email.includes("@")) {
+        mostrarError("Por favor, ingresa un correo válido", true);
+        return null;
+      }
+
+      return { nombre, telefono, email };
+    }
+
+    function validarCamposModal() {
+      const nombre = document.getElementById("nombre").value.trim();
+      const telefono = document.getElementById("telefono").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const btnPagar = document.getElementById("btnPagar");
+      const btnEnviar = document.getElementById("btnEnviar");
+
+      const camposValidos = nombre && telefono && email && email.includes("@");
+      btnPagar.disabled = !camposValidos;
+      btnEnviar.disabled = !camposValidos;
+    }
+
+    document.getElementById("nombre").addEventListener("input", validarCamposModal);
+    document.getElementById("telefono").addEventListener("input", validarCamposModal);
+    document.getElementById("email").addEventListener("input", validarCamposModal);
+
+    // ================================
+    // ENVIAR COTIZACIÓN POR CORREO
+    // ================================
+    async function enviarCotizacion() {
+      const datos = validarDatos();
+      if (!datos) return;
+
+      const btnEnviar = document.getElementById("btnEnviar");
+      btnEnviar.disabled = true;
+      btnEnviar.textContent = "Enviando...";
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/enviar-cotizacion`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ ...datos, ...ultimaCotizacion })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error del servidor: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.ok) {
+          mostrarExito("✅ Cotización enviada correctamente al correo");
+          cerrarModal();
+          document.getElementById("inicio").value = "";
+          document.getElementById("destino").value = "";
+          document.getElementById("nombre").value = "";
+          document.getElementById("telefono").value = "";
+          document.getElementById("email").value = "";
+          document.getElementById("resultado").innerHTML = "";
+        } else {
+          mostrarError("No se pudo enviar la cotización", true);
+        }
+      } catch (error) {
+        console.error("Error enviando cotización:", error);
+        mostrarError("Error al enviar la cotización. Intenta de nuevo.", true);
+      } finally {
+        btnEnviar.disabled = false;
+        btnEnviar.textContent = "📧 Enviar cotización por correo";
+      }
+    }
+
+    // ================================
+    // PAGAR CON WEBPAY
+    // ================================
+    async function pagarAhora() {
+      const datos = validarDatos();
+      if (!datos) return;
+
+      const btnPagar = document.getElementById("btnPagar");
+      btnPagar.disabled = true;
+      btnPagar.textContent = "Procesando...";
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/crear-transaccion`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ ...datos, ...ultimaCotizacion })
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error del servidor: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.error) {
+          mostrarError(data.error, true);
+          btnPagar.disabled = false;
+          btnPagar.textContent = "💳 Pagar ahora con WebPay";
+          return;
+        }
+
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          mostrarError("No se pudo iniciar la transacción", true);
+          btnPagar.disabled = false;
+          btnPagar.textContent = "💳 Pagar ahora con WebPay";
+        }
+      } catch (error) {
+        console.error("Error en pago:", error);
+        mostrarError("Error al procesar el pago. Intenta de nuevo.", true);
+        btnPagar.disabled = false;
+        btnPagar.textContent = "💳 Pagar ahora con WebPay";
+      }
+    }
+  </script>
+
 </body>
 </html>
