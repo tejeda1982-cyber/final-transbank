@@ -27,7 +27,7 @@ const tx = new WebpayPlus.Transaction(
 // CALCULAR DISTANCIA REAL CON GOOGLE MAPS
 // ================================
 async function calcularDistancia(inicio, destino) {
-  const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(inicio)}&destinations=${encodeURIComponent(destino)}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+  const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(inicio)}&destinations=${encodeURIComponent(destino)}&region=CL&key=${process.env.GOOGLE_MAPS_API_KEY}`;
   try {
     const resp = await fetch(url);
     const data = await resp.json();
@@ -97,7 +97,7 @@ app.post("/enviar-cotizacion", async (req,res)=>{
 
   try {
     await resend.emails.send({
-      from: "TuMotoExpress <cotizacion@tumotoexpress.cl>",
+      from: "TuMotoExpress <contacto@tumotoexpress.cl>",
       to: email,
       subject:"Cotización TuMotoExpress.cl - Consulta disponibilidad de servicio",
       html: `
