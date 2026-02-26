@@ -5,7 +5,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import fetch from "node-fetch";
 import { Resend } from "resend";
-import { WebpayPlus } from "transbank-sdk";
+import transbank from "transbank-sdk";
+const { WebpayPlus } = transbank;
 
 dotenv.config();
 
