@@ -1,34 +1,31 @@
 {
-  "name": "transbank-final-v2",
-  "version": "1.0.0",
-  "description": "Backend para Cotizador TuMotoExpress.cl con Transbank y envío de correos con Resend",
-  "main": "server.js",
-  "type": "module",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
-  },
-  "engines": {
-    "node": ">=18.0.0"
-  },
   "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
-    "resend": "^6.9.2",
-    "transbank-sdk": "^6.1.1",
-    "node-fetch": "^3.3.2"
+    "axios": "^1.13.5",
+    "body-parser": "^2.2.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "mysql": "^2.18.1",
+    "node-fetch": "^2.7.0"
   },
-  "devDependencies": {
-    "nodemon": "^3.0.1"
+  "name": "chatbot-tumotoexpress",
+  "version": "1.0.0",
+  "description": "\"# tumotoexpress-backend\"",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
   },
-  "keywords": [
-    "tu-moto-express",
-    "transbank",
-    "resend",
-    "cotizador",
-    "webpay"
-  ],
-  "author": "Jonathan Tejeda",
-  "license": "MIT"
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tejeda1982-cyber/tumotoexpress-backend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tejeda1982-cyber/tumotoexpress-backend/issues"
+  },
+  "homepage": "https://github.com/tejeda1982-cyber/tumotoexpress-backend#readme"
 }
