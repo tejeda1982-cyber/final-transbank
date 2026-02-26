@@ -1,4 +1,4 @@
-// server.js - versión ES Module
+// server.js - versión ES Module lista para Render
 
 import express from "express";
 import cors from "cors";
