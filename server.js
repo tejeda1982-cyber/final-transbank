@@ -1,29 +1,38 @@
-<<<<<<< HEAD
+// server.js - versión final para Render
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const { Resend } = require('resend');
+const { Resend } = require("resend");
 const { WebpayPlus, Options, Environment } = require("transbank-sdk");
 
-// ✅ Validar variables de entorno críticas
-if (!process.env.RESEND_API_KEY) {
-  console.error("ERROR: RESEND_API_KEY no está configurada");
-  process.exit(1);
-}
+// ================================
+// ✅ Validación de variables críticas
+// ================================
+const requiredEnv = [
+  "RESEND_API_KEY",
+  "GOOGLE_MAPS_API_KEY",
+  "TRANSBANK_COMMERCE_CODE",
+  "TRANSBANK_API_KEY",
+  "BASE_URL"
+];
 
-if (!process.env.GOOGLE_MAPS_API_KEY) {
-  console.error("ERROR: GOOGLE_MAPS_API_KEY no está configurada");
-  process.exit(1);
-}
+requiredEnv.forEach(key => {
+  if (!process.env[key]) {
+    console.error(`ERROR: ${key} no está configurada`);
+    process.exit(1);
+  }
+});
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname));
+app.use(express.static(__dirname)); // Servir index.html y assets
 
-// Configurar Transbank
+// ================================
+// Configuración Transbank
+// ================================
 const tx = new WebpayPlus.Transaction(
   new Options(
     process.env.TRANSBANK_COMMERCE_CODE,
@@ -35,40 +44,28 @@ const tx = new WebpayPlus.Transaction(
 );
 
 // ================================
-// CALCULAR DISTANCIA REAL CON GOOGLE MAPS
+// Calcular distancia real con Google Maps
 // ================================
 async function calcularDistancia(inicio, destino) {
-  if (!inicio?.trim() || !destino?.trim()) {
-    console.error("Direcciones inválidas");
-    return null;
-  }
+  if (!inicio?.trim() || !destino?.trim()) return null;
 
   const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(inicio)}&destinations=${encodeURIComponent(destino)}&region=CL&key=${process.env.GOOGLE_MAPS_API_KEY}`;
 
   try {
     const resp = await fetch(url);
-
-    if (!resp.ok) {
-      console.error(`Google Maps error: ${resp.status} ${resp.statusText}`);
-      return null;
-    }
-
+    if (!resp.ok) return null;
     const data = await resp.json();
-
     if (data.rows?.[0]?.elements?.[0]?.status === "OK") {
       return data.rows[0].elements[0].distance.value / 1000; // km
     }
-
-    console.error("Google Maps error:", data.status);
     return null;
-  } catch (e) {
-    console.error("Error al calcular distancia:", e.message);
+  } catch {
     return null;
   }
 }
 
 // ================================
-// FUNCIÓN HORARIO ESTIMADO
+// Función horario estimado
 // ================================
 function calcularMensajeHorario() {
   const ahora = new Date();
@@ -101,10 +98,7 @@ app.post("/cotizar", async (req, res) => {
   }
 
   const distancia_km = await calcularDistancia(inicio, destino);
-
-  if (distancia_km === null) {
-    return res.status(400).json({ error: "No se pudo calcular distancia" });
-  }
+  if (distancia_km === null) return res.status(400).json({ error: "No se pudo calcular distancia" });
 
   const valor_base = 5000;
   const iva = Math.round(valor_base * 0.19);
@@ -162,7 +156,6 @@ app.post("/enviar-cotizacion", async (req, res) => {
 // ================================
 app.post("/crear-transaccion", async (req, res) => {
   const { nombre, telefono, email, distancia_km } = req.body;
-
   if (!nombre?.trim() || !telefono?.trim() || !email?.trim()) {
     return res.status(400).json({ error: "Faltan datos del cliente" });
   }
@@ -173,7 +166,7 @@ app.post("/crear-transaccion", async (req, res) => {
 
   const buyOrder = "orden_" + Date.now();
   const sessionId = "sesion_" + Date.now();
-  const returnUrl = process.env.BASE_URL + "/confirmacion?email=" + encodeURIComponent(email);
+  const returnUrl = `${process.env.BASE_URL}/confirmacion?email=${encodeURIComponent(email)}`;
 
   try {
     const response = await tx.create(buyOrder, sessionId, total_calculado, returnUrl);
@@ -191,9 +184,7 @@ app.post("/confirmacion", async (req, res) => {
   const token_ws = req.body.token_ws || req.query.token_ws;
   const clienteEmail = req.query.email;
 
-  if (!token_ws) {
-    return res.status(400).json({ error: "token_ws faltante" });
-  }
+  if (!token_ws) return res.status(400).json({ error: "token_ws faltante" });
 
   try {
     const response = await tx.commit(token_ws);
@@ -208,6 +199,7 @@ app.post("/confirmacion", async (req, res) => {
                <p>En unos minutos coordinaremos tu servicio.</p>`
       });
     }
+
     res.json(response);
   } catch (e) {
     console.error("Error en confirmación Webpay:", e.message);
@@ -216,92 +208,10 @@ app.post("/confirmacion", async (req, res) => {
 });
 
 // ================================
-// SERVER
+// INICIAR SERVIDOR
 // ================================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ Servidor corriendo en puerto ${PORT}`);
-  console.log(`🌍 Entorno: ${process.env.TRANSBANK_ENV || 'development'}`);
+  console.log(`🌍 Entorno Transbank: ${process.env.TRANSBANK_ENV || "integration"}`);
 });
-=======
-const express = require('express');
-const cors = require('cors');
-
-const app = express();
-
-app.use(cors());
-app.use(express.json());
-app.use(express.static(__dirname)); // Permite servir index.html y logo
-
-// Node 18+ ya incluye fetch
-const fetch = global.fetch;
-
-// Calcular tarifa
-function calcularTarifa(distancia_km) {
-  let neto = 0;
-
-  if (distancia_km <= 6) {
-    neto = 6000;
-  } else if (distancia_km <= 10) {
-    neto = Math.round(distancia_km * 1000);
-  } else {
-    neto = Math.round(distancia_km * 800);
-  }
-
-  const iva = Math.round(neto * 0.19);
-  const total = neto + iva;
-
-  return { neto, iva, total };
-}
-
-// Endpoint de cotización
-app.post('/cotizar', async (req, res) => {
-  const { inicio, destino } = req.body;
-
-  const googleApiKey = process.env.GOOGLE_MAPS_API_KEY;
-
-  if (!googleApiKey) {
-    return res.status(500).json({ error: "API Key no configurada" });
-  }
-
-  try {
-    // MODIFICACIÓN: usar Directions API con alternatives=true para obtener la ruta más corta
-    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(inicio)}&destination=${encodeURIComponent(destino)}&key=${googleApiKey}&mode=driving&alternatives=true`;
-
-    const response = await fetch(url);
-    const data = await response.json();
-
-    if (data.routes && data.routes.length > 0) {
-      // Elegir la ruta con menor distancia
-      let rutaMasCorta = data.routes[0];
-      for (const ruta of data.routes) {
-        if (ruta.legs[0].distance.value < rutaMasCorta.legs[0].distance.value) {
-          rutaMasCorta = ruta;
-        }
-      }
-
-      const distancia_metros = rutaMasCorta.legs[0].distance.value;
-      const distancia_km = distancia_metros / 1000;
-
-      const { neto, iva, total } = calcularTarifa(distancia_km);
-
-      res.json({
-        inicio,
-        destino,
-        distancia_km,
-        neto,
-        iva,
-        total
-      });
-    } else {
-      res.status(400).json({ error: "No se pudo calcular distancia" });
-    }
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Error Google Maps" });
-  }
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Servidor corriendo en puerto ${PORT}`));
->>>>>>> 6b09af43986c033d66b03284f25d21bb90340bab
