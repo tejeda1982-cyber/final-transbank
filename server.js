@@ -7,9 +7,9 @@ const path = require("path");
 
 const app = express();
 
-// ✅ CORS CORREGIDO (único cambio realizado)
+// ✅ CORS CORREGIDO para tu nuevo Render
 app.use(cors({
-  origin: ["https://cotizador.tumotoexpress.cl"],
+  origin: ["https://final-transbank.onrender.com"],
   credentials: false
 }));
 app.use(express.json());
@@ -56,7 +56,6 @@ let { tarifa_base, km_adicional_6_10, km_adicional_10_mas, cupones } = leerTarif
 async function calcularDistancia(inicio, destino) {
   if (!inicio?.trim() || !destino?.trim()) return null;
 
-  // 🔹 MODIFICACIÓN: Usar Directions API para calcular la ruta más corta
   const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(inicio)}&destination=${encodeURIComponent(destino)}&region=CL&mode=driving&key=${process.env.GOOGLE_MAPS_BACKEND_KEY}`;
 
   try {
@@ -67,7 +66,7 @@ async function calcularDistancia(inicio, destino) {
     }
     const data = await resp.json();
     if (data.routes?.[0]?.legs?.[0]?.distance?.value != null) {
-      return data.routes[0].legs[0].distance.value / 1000; // distancia en km
+      return data.routes[0].legs[0].distance.value / 1000; // km
     }
     console.error("Google Maps error:", data.status);
     return null;
