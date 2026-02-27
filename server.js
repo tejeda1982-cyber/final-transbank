@@ -3,7 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
-const fetch = require("node-fetch"); // versión 2.x
+const fetch = require("node-fetch"); // asegúrate que sea versión 2.x
 const { Resend } = require("resend");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -14,9 +14,10 @@ const app = express();
 // ================================
 app.use(cors());
 app.use(express.json());
+app.use(express.static(__dirname)); // servir archivos estáticos
 
 // ================================
-// SERVIR ARCHIVOS ESTÁTICOS
+// RUTA PRINCIPAL
 // ================================
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "index.html"));
@@ -53,7 +54,9 @@ let porcentajeAjuste = 0;
 // DISTANCIA GOOGLE
 // ================================
 async function calcularDistancia(inicio, destino) {
-  const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(inicio)}&destination=${encodeURIComponent(destino)}&region=CL&mode=driving&key=${process.env.GOOGLE_MAPS_BACKEND_KEY}`;
+  const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(
+    inicio
+  )}&destination=${encodeURIComponent(destino)}&region=CL&mode=driving&key=${process.env.GOOGLE_MAPS_BACKEND_KEY}`;
 
   try {
     const resp = await fetch(url);
@@ -100,7 +103,7 @@ function calcularPrecio(distancia_km, codigo_cupon = "") {
   const iva = Math.round(netoConDescuento * 0.19);
   const total = netoConDescuento + iva;
 
-  return { neto, descuentoValor, descuentoTexto, iva, total };
+  return { neto, descuentoValor, descuentoTexto, netoConDescuento, iva, total };
 }
 
 // ================================
@@ -110,6 +113,7 @@ async function enviarCorreo(cliente, cotizacion) {
   if (!cliente?.correo) return;
 
   try {
+    // Enviar correo al cliente
     await resend.emails.send({
       from: "contacto@tumotoexpress.cl",
       to: cliente.correo,
@@ -119,6 +123,21 @@ async function enviarCorreo(cliente, cotizacion) {
         <p><strong>Total:</strong> $${cotizacion.total}</p>
       `
     });
+
+    // Enviar copia interna
+    await resend.emails.send({
+      from: "contacto@tumotoexpress.cl",
+      to: "interno@tumotoexpress.cl",
+      subject: "Copia cotización TuMotoExpress",
+      html: `
+        <h2>Cotización generada:</h2>
+        <p>Cliente: ${cliente.nombre || "N/A"}</p>
+        <p>Correo: ${cliente.correo || "N/A"}</p>
+        <p>Teléfono: ${cliente.telefono || "N/A"}</p>
+        <p>Total: $${cotizacion.total}</p>
+      `
+    });
+
   } catch (err) {
     console.error("Error enviando correo:", err.message);
   }
@@ -151,6 +170,7 @@ app.post("/cotizar", async (req, res) => {
 
     res.json(respuesta);
 
+    // Enviar correo al cliente y copia interna
     enviarCorreo({ nombre, telefono, correo }, respuesta);
 
   } catch (error) {
