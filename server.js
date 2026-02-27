@@ -1,185 +1,61 @@
 require("dotenv").config();
-
 const express = require("express");
-const cors = require("cors");
-const path = require("path");
-const fs = require("fs");
 const fetch = require("node-fetch");
-const { Resend } = require("resend");
+const cors = require("cors");
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const app = express();
-
-// ================================
-// CONFIGURACIÓN BÁSICA
-// ================================
 app.use(cors());
 app.use(express.json());
 
-// 🔥 Servir archivos estáticos correctamente
-app.use(express.static(__dirname));
+const PORT = process.env.PORT || 3000;
 
-// ================================
-// RUTA PRINCIPAL
-// ================================
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
-});
+// 🔐 Clave privada (NO visible en frontend)
+const GOOGLE_KEY = process.env.GOOGLE_MAPS_BACKEND_KEY;
 
-// Ruta de prueba
-app.get("/health", (req, res) => {
-  res.json({ status: "OK" });
-});
-
-// ================================
-// TARIFAS
-// ================================
-const TARIFAS_FILE = path.join(__dirname, "tarifas.json");
-
-function leerTarifas() {
-  try {
-    const data = fs.readFileSync(TARIFAS_FILE, "utf8");
-    return JSON.parse(data);
-  } catch {
-    return {
-      tarifa_base: 6000,
-      km_adicional_6_10: 1000,
-      km_adicional_10_mas: 850,
-      cupones: {}
-    };
-  }
-}
-
-let { tarifa_base, km_adicional_6_10, km_adicional_10_mas, cupones } = leerTarifas();
-let porcentajeAjuste = 0;
-
-// ================================
-// DISTANCIA GOOGLE (DEBUG MEJORADO)
-// ================================
-async function calcularDistancia(inicio, destino) {
-  const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(inicio)}&destination=${encodeURIComponent(destino)}&region=CL&mode=driving&key=${process.env.GOOGLE_MAPS_BACKEND_KEY}`;
-
-  try {
-    console.log("🔎 URL enviada a Google:", url.replace(process.env.GOOGLE_MAPS_BACKEND_KEY, "OCULTA"));
-
-    const resp = await fetch(url);
-    const data = await resp.json();
-
-    console.log("📦 Respuesta completa de Google:", JSON.stringify(data));
-
-    if (data.status !== "OK") {
-      console.log("❌ Google status:", data.status);
-      console.log("❌ Google error_message:", data.error_message);
-      return null;
-    }
-
-    const distanciaMetros = data.routes?.[0]?.legs?.[0]?.distance?.value;
-
-    if (!distanciaMetros) {
-      console.log("❌ No se encontró distancia en la respuesta");
-      return null;
-    }
-
-    return distanciaMetros / 1000;
-
-  } catch (error) {
-    console.error("🚨 Error consultando Google:", error);
-    return null;
-  }
-}
-
-// ================================
-// CALCULAR PRECIO
-// ================================
-function calcularPrecio(distancia_km, codigo_cupon = "") {
-  let neto = 0;
-
-  if (distancia_km <= 6) neto = tarifa_base;
-  else if (distancia_km <= 10) neto = Math.round(distancia_km * km_adicional_6_10);
-  else neto = Math.round(distancia_km * km_adicional_10_mas);
-
-  if (porcentajeAjuste > 0) {
-    neto = Math.round(neto * (1 + porcentajeAjuste / 100));
-  }
-
-  let descuentoValor = 0;
-  let descuentoTexto = "";
-
-  if (codigo_cupon && cupones[codigo_cupon.toUpperCase()]) {
-    const porcentaje = cupones[codigo_cupon.toUpperCase()];
-    descuentoValor = Math.round(neto * (porcentaje / 100));
-    descuentoTexto = `Descuento ${codigo_cupon.toUpperCase()} ${porcentaje}%`;
-  }
-
-  const netoConDescuento = neto - descuentoValor;
-  const iva = Math.round(netoConDescuento * 0.19);
-  const total = netoConDescuento + iva;
-
-  return { neto, descuentoValor, descuentoTexto, iva, total };
-}
-
-// ================================
-// ENVIAR CORREO
-// ================================
-async function enviarCorreo(cliente, cotizacion) {
-  if (!cliente?.correo) return;
-
-  try {
-    await resend.emails.send({
-      from: "contacto@tumotoexpress.cl",
-      to: cliente.correo,
-      subject: "Cotización TuMotoExpress",
-      html: `
-        <h2>Hola ${cliente.nombre || "cliente"}</h2>
-        <p><strong>Total:</strong> $${cotizacion.total}</p>
-      `
-    });
-  } catch (err) {
-    console.error("Error enviando correo:", err.message);
-  }
-}
-
-// ================================
-// ENDPOINT COTIZAR
-// ================================
 app.post("/cotizar", async (req, res) => {
   try {
-    const { inicio, destino, cupon, nombre, telefono, correo } = req.body;
+    const { origen, destino } = req.body;
 
-    if (!inicio || !destino) {
-      return res.status(400).json({ error: "Faltan datos" });
+    if (!origen || !destino) {
+      return res.status(400).json({ error: "Faltan direcciones" });
     }
 
-    const distancia_km = await calcularDistancia(inicio, destino);
-
-    if (!distancia_km) {
-      return res.status(400).json({ error: "No se pudo calcular distancia" });
+    if (!GOOGLE_KEY) {
+      return res.status(500).json({ error: "API key no configurada en Render" });
     }
 
-    const resultado = calcularPrecio(distancia_km, cupon);
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origen)}&destination=${encodeURIComponent(destino)}&region=CL&mode=driving&key=${GOOGLE_KEY}`;
 
-    const respuesta = {
-      inicio,
-      destino,
-      distancia_km,
-      ...resultado
-    };
+    console.log("🔎 URL enviada a Google:", url.replace(GOOGLE_KEY, "OCULTA"));
 
-    res.json(respuesta);
+    const response = await fetch(url);
+    const data = await response.json();
 
-    enviarCorreo({ nombre, telefono, correo }, respuesta);
+    console.log("📦 Respuesta completa de Google:", data);
+
+    if (data.status !== "OK") {
+      return res.status(400).json({
+        error: "No se pudo calcular distancia",
+        google_status: data.status,
+        google_error: data.error_message
+      });
+    }
+
+    const ruta = data.routes[0];
+    const distancia = ruta.legs[0].distance.value; // metros
+    const duracion = ruta.legs[0].duration.value; // segundos
+
+    res.json({
+      distancia_metros: distancia,
+      duracion_segundos: duracion
+    });
 
   } catch (error) {
-    console.error("Error en /cotizar:", error);
+    console.error("❌ Error servidor:", error);
     res.status(500).json({ error: "Error interno del servidor" });
   }
 });
 
-// ================================
-// SERVER
-// ================================
-const PORT = process.env.PORT || 10000;
-
 app.listen(PORT, () => {
-  console.log(`✅ Servidor corriendo en puerto ${PORT}`);
+  console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
 });
