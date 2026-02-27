@@ -1,6 +1,4 @@
 require("dotenv").config();
-const { Resend } = require("resend");
-const resend = new Resend(process.env.RESEND_API_KEY);
 const fetch = require('node-fetch');
 const fs = require("fs");
 const express = require("express");

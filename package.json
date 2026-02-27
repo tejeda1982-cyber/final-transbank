@@ -1,0 +1,29 @@
+{
+  "name": "transbank_final",
+  "version": "1.0.0",
+  "description": "\"# tumotoexpress-backend\" \r \"# tumotoexpress-backend-test\"",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tejeda1982-cyber/final-transbank.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/tejeda1982-cyber/final-transbank/issues"
+  },
+  "homepage": "https://github.com/tejeda1982-cyber/final-transbank#readme",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "node-fetch": "^3.3.2",
+    "resend": "^6.9.2"
+  }
+}
