@@ -5,7 +5,7 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 
-// ✅ Resend
+// ✅ Resend v6.9.2
 const { Resend } = require("resend");
 const resend = new Resend(process.env.RESEND_API_KEY);
 
