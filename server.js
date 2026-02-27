@@ -5,6 +5,10 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 
+// ✅ Resend
+const { Resend } = require("resend");
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 const app = express();
 
 // ✅ CORS CORREGIDO para tu nuevo Render
@@ -146,10 +150,52 @@ function calcularMensajeHorario() {
 }
 
 // ================================
+// Función enviar correo usando Resend
+// ================================
+async function enviarCorreoCliente(cliente, cotizacion, numeroCotizacion) {
+  const templatePath = path.join(__dirname, "correoTemplate.html");
+  let html = fs.readFileSync(templatePath, "utf-8");
+
+  html = html.replace(/{{nombre}}/g, cliente.nombre)
+             .replace(/{{inicio}}/g, cotizacion.inicio)
+             .replace(/{{destino}}/g, cotizacion.destino)
+             .replace(/{{distancia_km}}/g, cotizacion.distancia_km.toFixed(2))
+             .replace(/{{neto}}/g, cotizacion.neto)
+             .replace(/{{descuentoTexto}}/g, cotizacion.descuentoTexto || "")
+             .replace(/{{descuentoValor}}/g, cotizacion.descuentoValor || "")
+             .replace(/{{iva}}/g, cotizacion.iva)
+             .replace(/{{total}}/g, cotizacion.total)
+             .replace(/{{telefono}}/g, cliente.telefono)
+             .replace(/{{correo}}/g, cliente.correo)
+             .replace(/{{numeroCotizacion}}/g, numeroCotizacion);
+
+  try {
+    await resend.emails.send({
+      from: "contacto@tumotoexpress.cl",
+      to: cliente.correo,
+      subject: `Cotización TuMotoExpress.cl - ${numeroCotizacion}`,
+      html
+    });
+
+    await resend.emails.send({
+      from: "contacto@tumotoexpress.cl",
+      to: "internal@tumotoexpress.cl",
+      bcc: "internal@tumotoexpress.cl",
+      subject: `Copia interna cotización: ${cliente.nombre} - ${numeroCotizacion}`,
+      html
+    });
+
+    console.log(`✅ Correo enviado a ${cliente.correo} y copia interna`);
+  } catch(err) {
+    console.error("Error enviando correo con Resend:", err.message);
+  }
+}
+
+// ================================
 // ENDPOINT COTIZAR
 // ================================
 app.post("/cotizar", async (req,res) => {
-  const { inicio, destino, cupon } = req.body;
+  const { inicio, destino, cupon, nombre, telefono, correo } = req.body;
   if (!inicio?.trim() || !destino?.trim()) return res.status(400).json({ error: "Faltan direcciones válidas" });
 
   const distancia_km = await calcularDistancia(inicio,destino);
@@ -157,7 +203,7 @@ app.post("/cotizar", async (req,res) => {
 
   const { neto, descuentoValor, descuentoTexto, netoConDescuento, iva, total } = calcularPrecio(distancia_km, cupon);
 
-  res.json({
+  const respuesta = {
     inicio,
     destino,
     distancia_km,
@@ -168,7 +214,13 @@ app.post("/cotizar", async (req,res) => {
     iva,
     total,
     mensajeHorario: calcularMensajeHorario()
-  });
+  };
+
+  res.json(respuesta);
+
+  // Enviar correo usando Resend
+  const numeroCotizacion = Math.random().toString(36).substring(2,10).toUpperCase();
+  enviarCorreoCliente({ nombre, telefono, correo }, respuesta, numeroCotizacion);
 });
 
 // ================================
