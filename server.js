@@ -54,18 +54,36 @@ let { tarifa_base, km_adicional_6_10, km_adicional_10_mas, cupones } = leerTarif
 let porcentajeAjuste = 0;
 
 // ================================
-// DISTANCIA GOOGLE
+// DISTANCIA GOOGLE (DEBUG MEJORADO)
 // ================================
 async function calcularDistancia(inicio, destino) {
   const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(inicio)}&destination=${encodeURIComponent(destino)}&region=CL&mode=driving&key=${process.env.GOOGLE_MAPS_BACKEND_KEY}`;
 
   try {
+    console.log("🔎 URL enviada a Google:", url.replace(process.env.GOOGLE_MAPS_BACKEND_KEY, "OCULTA"));
+
     const resp = await fetch(url);
     const data = await resp.json();
-    return data.routes?.[0]?.legs?.[0]?.distance?.value
-      ? data.routes[0].legs[0].distance.value / 1000
-      : null;
-  } catch {
+
+    console.log("📦 Respuesta completa de Google:", JSON.stringify(data));
+
+    if (data.status !== "OK") {
+      console.log("❌ Google status:", data.status);
+      console.log("❌ Google error_message:", data.error_message);
+      return null;
+    }
+
+    const distanciaMetros = data.routes?.[0]?.legs?.[0]?.distance?.value;
+
+    if (!distanciaMetros) {
+      console.log("❌ No se encontró distancia en la respuesta");
+      return null;
+    }
+
+    return distanciaMetros / 1000;
+
+  } catch (error) {
+    console.error("🚨 Error consultando Google:", error);
     return null;
   }
 }
@@ -133,6 +151,7 @@ app.post("/cotizar", async (req, res) => {
     }
 
     const distancia_km = await calcularDistancia(inicio, destino);
+
     if (!distancia_km) {
       return res.status(400).json({ error: "No se pudo calcular distancia" });
     }
