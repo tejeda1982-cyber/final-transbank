@@ -47,30 +47,30 @@ function leerTarifas() {
 let { tarifa_base, km_adicional_6_10, km_adicional_10_mas, cupones } = leerTarifas();
 let porcentajeAjuste = 0;
 
-// 🔴 FUNCIÓN MODIFICADA - AHORA SIEMPRE OBTIENE LA RUTA MÁS CORTA
-async function calcularDistancia(inicio, destino) {
+// 🔴 FUNCIÓN MODIFICADA - OBTIENE LA RUTA MÁS CORTA CON TIEMPO
+async function calcularDistanciaYTiempo(inicio, destino) {
   if (!process.env.GOOGLE_MAPS_BACKEND_KEY) {
     console.error("❌ ERROR: GOOGLE_MAPS_BACKEND_KEY no está configurada");
-    return 8.5;
+    return { km: 8.5, minutos: 30 };
   }
   
-  // 🔴 AÑADIMOS &alternatives=true para obtener múltiples rutas
   const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(inicio)}&destination=${encodeURIComponent(destino)}&region=CL&mode=driving&alternatives=true&key=${process.env.GOOGLE_MAPS_BACKEND_KEY}`;
   
   try {
-    console.log("🔍 Calculando distancia entre:", inicio, "y", destino);
+    console.log("🔍 Calculando ruta entre:", inicio, "y", destino);
     const resp = await fetch(url);
     const data = await resp.json();
     
     if (data.status !== "OK") {
       console.error("❌ Google Directions API error:", data.error_message || data.status);
-      return 8.5;
+      return { km: 8.5, minutos: 30 };
     }
     
-    // 🔴 NUEVA LÓGICA: Buscar la ruta con la distancia MÁS CORTA
+    // Buscar la ruta con la distancia MÁS CORTA
     if (data.routes && data.routes.length > 0) {
       let rutaMasCorta = data.routes[0];
       let distanciaMinima = rutaMasCorta.legs?.[0]?.distance?.value || Infinity;
+      let tiempoMinimo = rutaMasCorta.legs?.[0]?.duration?.value || 0;
       
       // Si hay múltiples rutas, encontrar la de menor distancia
       if (data.routes.length > 1) {
@@ -78,20 +78,62 @@ async function calcularDistancia(inicio, destino) {
           const distanciaActual = data.routes[i].legs?.[0]?.distance?.value || Infinity;
           if (distanciaActual < distanciaMinima) {
             distanciaMinima = distanciaActual;
-            rutaMasCorta = data.routes[i];
+            tiempoMinimo = data.routes[i].legs?.[0]?.duration?.value || 0;
           }
         }
       }
       
       const km = distanciaMinima / 1000;
-      console.log(`✅ Ruta más corta encontrada: ${km.toFixed(2)} km (de ${data.routes.length} ruta(s) disponible(s))`);
-      return km;
+      const minutos = Math.round(tiempoMinimo / 60); // Convertir segundos a minutos
+      
+      console.log(`✅ Ruta más corta: ${km.toFixed(2)} km, ${minutos} min (de ${data.routes.length} ruta(s))`);
+      return { km, minutos };
     }
     
-    return 8.5;
+    return { km: 8.5, minutos: 30 };
   } catch (err) {
     console.error("❌ Error en Google Directions API:", err.message);
-    return 8.5;
+    return { km: 8.5, minutos: 30 };
+  }
+}
+
+// 🔴 NUEVA FUNCIÓN - CALCULAR RUTA ÓPTIMA PARA MÚLTIPLES DESTINOS
+async function calcularRutaOptima(origen, destinos) {
+  if (!process.env.GOOGLE_MAPS_BACKEND_KEY || destinos.length === 0) {
+    return [];
+  }
+  
+  try {
+    console.log("🔄 Calculando ruta óptima para múltiples destinos");
+    
+    const resultados = [];
+    let origenActual = origen;
+    
+    // Calcular cada tramo desde el origen actual (que siempre es el punto anterior)
+    for (let i = 0; i < destinos.length; i++) {
+      console.log(`📍 Calculando tramo ${i + 1}:`, origenActual, "→", destinos[i]);
+      
+      const { km, minutos } = await calcularDistanciaYTiempo(origenActual, destinos[i]);
+      
+      resultados.push({
+        direccion: destinos[i],
+        distancia_km: km,
+        tiempo_minutos: minutos
+      });
+      
+      // Actualizar origen para el siguiente tramo (NO - siempre desde origen original)
+      // origenActual = destinos[i]; // Esto haría ruta en cadena
+      // Mantenemos origenActual = origen para siempre calcular desde el origen original
+    }
+    
+    return resultados;
+  } catch (err) {
+    console.error("❌ Error calculando ruta óptima:", err);
+    return destinos.map(destino => ({
+      direccion: destino,
+      distancia_km: 8.5,
+      tiempo_minutos: 30
+    }));
   }
 }
 
@@ -158,7 +200,7 @@ function generarCodigoCotizacion() {
   return codigo;
 }
 
-// ENVIAR CORREOS (CLIENTE Y COPIA)
+// 🔴 FUNCIÓN MODIFICADA - ENVIAR CORREOS CON MÚLTIPLES DESTINOS
 async function enviarCorreos(cliente, cotizacion) {
   console.log("📧 Iniciando envío de correos...");
   console.log("📧 Cliente:", JSON.stringify(cliente, null, 2));
@@ -198,18 +240,35 @@ async function enviarCorreos(cliente, cotizacion) {
       return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     };
 
-    // Procesar template - INCLUYENDO EL CÓDIGO
+    // 🔴 CREAR HTML PARA MÚLTIPLES DESTINOS
+    let destinosHtml = '';
+    if (cotizacion.destinos && cotizacion.destinos.length > 0) {
+      destinosHtml = '<div style="margin: 10px 0;">';
+      cotizacion.destinos.forEach((dest, index) => {
+        destinosHtml += `
+          <div style="background: #f5f5f5; padding: 8px; margin: 5px 0; border-left: 3px solid #ff4500;">
+            <strong>Destino ${index + 1}:</strong> ${dest.direccion}<br>
+            📏 ${dest.distancia_km.toFixed(2)} km | ⏱️ ${dest.tiempo_minutos} min
+          </div>
+        `;
+      });
+      destinosHtml += '</div>';
+    } else {
+      // Fallback a un solo destino
+      destinosHtml = `<strong>Destino:</strong> ${cotizacion.destino || cotizacion.destinos?.[0]?.direccion || 'No especificado'}`;
+    }
+
+    // Procesar template - INCLUYENDO EL CÓDIGO Y MÚLTIPLES DESTINOS
     let htmlCliente = htmlTemplate
       .replace(/{{nombre}}/g, cliente.nombre || "Cliente")
       .replace(/{{origen}}/g, cotizacion.inicio || "")
-      .replace(/{{destino}}/g, cotizacion.destino || "")
-      .replace(/{{distancia}}/g, cotizacion.distancia_km ? cotizacion.distancia_km.toFixed(2) : "0")
+      .replace(/{{destino}}/g, destinosHtml) // Reemplazamos destino con el HTML de múltiples destinos
+      .replace(/{{distancia}}/g, cotizacion.distancia_total_km ? cotizacion.distancia_total_km.toFixed(2) : "0")
       .replace(/{{neto}}/g, formatearNumero(cotizacion.neto))
       .replace(/{{iva}}/g, formatearNumero(cotizacion.iva))
       .replace(/{{total}}/g, formatearNumero(cotizacion.total))
       .replace(/{{telefono}}/g, cliente.telefono || "")
       .replace(/{{mensajeHorario}}/g, obtenerMensajeHoraEstimado())
-      // NUEVO: Reemplazar el código en el template
       .replace(/{{codigoCotizacion}}/g, codigoCotizacion);
 
     // Procesar descuento condicional
@@ -232,7 +291,6 @@ async function enviarCorreos(cliente, cotizacion) {
     const resultCliente = await resend.emails.send({
       from: fromEmail,
       to: cliente.correo,
-      // NUEVO: Incluir código en el asunto
       subject: `🚀 Cotización #${codigoCotizacion} - TuMotoExpress.cl - $${formatearNumero(cotizacion.total)}`,
       html: htmlCliente
     });
@@ -246,7 +304,6 @@ async function enviarCorreos(cliente, cotizacion) {
     const resultCopia = await resend.emails.send({
       from: fromEmail,
       to: ["contacto@tumotoexpress.cl"],
-      // NUEVO: Incluir código en el asunto de la copia
       subject: `📊 COPIA #${codigoCotizacion}: Cotización para ${cliente.nombre || "cliente"} - $${formatearNumero(cotizacion.total)}`,
       html: htmlCliente
     });
@@ -263,33 +320,43 @@ async function enviarCorreos(cliente, cotizacion) {
   }
 }
 
-// ENDPOINT COTIZAR
+// 🔴 ENDPOINT COTIZAR MODIFICADO - MANEJA MÚLTIPLES DESTINOS
 app.post("/cotizar", async (req, res) => {
   console.log("📩 POST /cotizar recibido");
   console.log("📩 Body:", req.body);
   
   try {
-    const { inicio, destino, cupon, nombre, correo, telefono } = req.body;
+    const { inicio, destinos, cupon, nombre, correo, telefono } = req.body;
 
-    if (!inicio || !destino) {
-      return res.status(400).json({ error: "Faltan datos de origen o destino" });
+    if (!inicio) {
+      return res.status(400).json({ error: "Falta la dirección de origen" });
     }
 
-    // Calcular distancia (AHORA SIEMPRE LA MÁS CORTA)
-    const distancia_km = await calcularDistancia(inicio, destino);
+    if (!destinos || !Array.isArray(destinos) || destinos.length === 0) {
+      return res.status(400).json({ error: "Se requiere al menos un destino" });
+    }
+
+    // 🔴 Calcular ruta óptima para todos los destinos
+    const destinosCalculados = await calcularRutaOptima(inicio, destinos);
     
-    // Calcular precio
-    const resultado = calcularPrecio(distancia_km, cupon || "");
+    // 🔴 Calcular distancia total (suma de todos los tramos desde origen)
+    const distancia_total_km = destinosCalculados.reduce((sum, d) => sum + d.distancia_km, 0);
+    const tiempo_total_minutos = destinosCalculados.reduce((sum, d) => sum + d.tiempo_minutos, 0);
+    
+    // Calcular precio basado en distancia total
+    const resultado = calcularPrecio(distancia_total_km, cupon || "");
     
     // Preparar respuesta
     const respuesta = {
       inicio,
-      destino,
-      distancia_km,
+      destinos: destinosCalculados,
+      distancia_total_km,
+      tiempo_total_minutos,
       ...resultado
     };
 
     console.log("✅ Cotización calculada:", respuesta);
+    console.log(`✅ Distancia total: ${distancia_total_km.toFixed(2)} km, Tiempo total: ${tiempo_total_minutos} min`);
     
     // Enviar respuesta inmediatamente
     res.json(respuesta);
@@ -320,6 +387,32 @@ app.post("/cotizar", async (req, res) => {
   }
 });
 
+// 🔴 NUEVO ENDPOINT PARA ENVIAR CORREO CON DATOS COMPLETOS
+app.post("/enviar-correo", async (req, res) => {
+  console.log("📩 POST /enviar-correo recibido");
+  
+  try {
+    const { inicio, destinos, cupon, nombre, correo, telefono, cotizacion } = req.body;
+    
+    if (!nombre || !correo || !telefono) {
+      return res.status(400).json({ error: "Faltan datos del cliente" });
+    }
+    
+    console.log("📧 Enviando correo con cotización existente");
+    
+    const result = await enviarCorreos({ nombre, correo, telefono }, cotizacion);
+    
+    if (result) {
+      res.json({ success: true, message: "Correo enviado correctamente" });
+    } else {
+      res.status(500).json({ error: "Error al enviar el correo" });
+    }
+  } catch (err) {
+    console.error("❌ Error en /enviar-correo:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ENDPOINT DE PRUEBA PARA CORREOS
 app.post("/test-email", async (req, res) => {
   try {
@@ -333,12 +426,17 @@ app.post("/test-email", async (req, res) => {
     
     const testCotizacion = {
       inicio: "Av. Providencia 123, Santiago",
-      destino: "Av. Las Condes 456, Santiago",
-      distancia_km: 8.5,
-      neto: 8500,
-      descuentoValor: 850,
-      iva: 1453,
-      total: 9103
+      destinos: [
+        { direccion: "Av. Las Condes 456, Santiago", distancia_km: 8.5, tiempo_minutos: 18 },
+        { direccion: "Av. Irarrázaval 789, Ñuñoa", distancia_km: 5.2, tiempo_minutos: 12 },
+        { direccion: "Av. Vicuña Mackenna 123, Santiago", distancia_km: 6.8, tiempo_minutos: 15 }
+      ],
+      distancia_total_km: 20.5,
+      tiempo_total_minutos: 45,
+      neto: 17425,
+      descuentoValor: 1742,
+      iva: 2980,
+      total: 18663
     };
 
     console.log("🧪 Enviando correo de prueba a:", testCliente.correo);

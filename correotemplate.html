@@ -100,7 +100,7 @@
             padding-bottom: 10px;
         }
         
-        /* SECCIÓN DE RUTA */
+        /* SECCIÓN DE RUTA - MODIFICADA PARA MÚLTIPLES DESTINOS */
         .ruta {
             background: white;
             border-radius: 10px;
@@ -127,6 +127,34 @@
             flex: 1;
             word-break: break-word;
             font-size: 14px;
+        }
+        
+        /* NUEVO ESTILO PARA DESTINOS MÚLTIPLES */
+        .destino-item {
+            background: #f9f9f9;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 8px 0;
+            border-left: 3px solid #ff4500;
+            font-size: 14px;
+        }
+        
+        .destino-item strong {
+            color: #333;
+        }
+        
+        .destino-detalle {
+            display: flex;
+            gap: 15px;
+            margin-top: 5px;
+            color: #666;
+            font-size: 13px;
+        }
+        
+        .destino-detalle span {
+            background: #f0f0f0;
+            padding: 3px 8px;
+            border-radius: 12px;
         }
         
         .distancia {
@@ -312,10 +340,31 @@
                 font-size: 13px;
                 padding: 5px 10px;
             }
+            
+            .destino-detalle {
+                flex-direction: column;
+                gap: 5px;
+            }
         }
         
         .text-center {
             text-align: center;
+        }
+        
+        /* RESUMEN DE TIEMPO TOTAL */
+        .resumen-total {
+            background: #f0f0f0;
+            border-radius: 12px;
+            padding: 12px;
+            margin: 15px 0 10px;
+            text-align: center;
+            font-size: 15px;
+        }
+        
+        .resumen-total span {
+            margin: 0 10px;
+            font-weight: bold;
+            color: #ff4500;
         }
     </style>
 </head>
@@ -339,7 +388,7 @@
             
             <p style="margin-bottom: 16px; font-size: 14px;">Gracias por cotizar con nosotros. Aquí tienes los detalles de tu servicio:</p>
             
-            <!-- TARJETA DE VIAJE -->
+            <!-- TARJETA DE VIAJE - MODIFICADA PARA MÚLTIPLES DESTINOS -->
             <div class="card">
                 <h2>📍 Detalles del viaje</h2>
                 
@@ -348,14 +397,18 @@
                         <span class="ruta-icon">🟢</span>
                         <span class="ruta-text"><strong>Origen:</strong> {{origen}}</span>
                     </div>
-                    <div class="ruta-item">
-                        <span class="ruta-icon">🔴</span>
-                        <span class="ruta-text"><strong>Destino:</strong> {{destino}}</span>
+                    
+                    <!-- DESTINOS MÚLTIPLES -->
+                    <div style="margin-top: 10px;">
+                        <strong style="display: block; margin-bottom: 8px; color: #333;">📍 Destinos:</strong>
+                        {{destinosHtml}}
                     </div>
                 </div>
                 
-                <div class="text-center">
-                    <span class="distancia">📏 Distancia total: <strong>{{distancia}} km</strong></span>
+                <!-- RESUMEN DE DISTANCIA Y TIEMPO TOTAL -->
+                <div class="resumen-total">
+                    <span>📏 Distancia total: {{distancia}} km</span>
+                    <span>⏱️ Tiempo total: {{tiempoTotal}} min</span>
                 </div>
             </div>
             
@@ -399,12 +452,12 @@
                 <p>{{mensajeHorario}}</p>
             </div>
             
-            <!-- BOTÓN WHATSAPP -->
+            <!-- BOTÓN WHATSAPP - MODIFICADO PARA MÚLTIPLES DESTINOS -->
             <p class="text-center" style="margin: 16px 0 8px; font-size: 14px;">
                 <strong>¿Quieres confirmar tu viaje?</strong>
             </p>
             
-            <a href="https://wa.me/56942325524?text=Hola%2C%20confirmo%20el%20servicio%20de%20TuMotoExpress.cl%20-%20{{origen}}%20a%20{{destino}}%20por%20%24{{total}}%20(Código%20{{codigoCotizacion}})" 
+            <a href="{{whatsappLink}}" 
                class="btn-whatsapp" target="_blank">
                 📱 Confirmar por WhatsApp
             </a>

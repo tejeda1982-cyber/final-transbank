@@ -21,8 +21,8 @@ body::before {
   content: "";
   position: fixed;
   top: 50%;
-  left: 0; /* Pegado al borde izquierdo */
-  transform: translateY(-50%); /* Solo mueve verticalmente para centrar */
+  left: 0;
+  transform: translateY(-50%);
   width: 540px;
   height: 540px;
   background: url('logo.png') no-repeat center;
@@ -37,8 +37,8 @@ body::after {
   content: "";
   position: fixed;
   top: 50%;
-  right: 0; /* Pegado al borde derecho */
-  transform: translateY(-50%); /* Solo mueve verticalmente para centrar */
+  right: 0;
+  transform: translateY(-50%);
   width: 540px;
   height: 540px;
   background: url('logo.png') no-repeat center;
@@ -71,6 +71,7 @@ button:hover { opacity: 0.9; transform: translateY(-1px); }
 button:active { transform: translateY(0); }
 
 .btn-cotizar { background: #111; color: white; }
+.btn-agregar { background: #4a4a4a; color: white; margin-top: 5px; font-size: 14px; padding: 12px; }
 .btn-whatsapp { background: #25D366; color: white; display: none; margin-top: 15px; }
 .btn-correo { background: #1a73e8; color: white; display: none; margin-top: 15px; }
 .btn-pagar { background: #ff4500; color: white; display: none; margin-top: 15px; }
@@ -114,6 +115,33 @@ button:active { transform: translateY(0); }
 }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
+/* Estilos para destinos adicionales */
+.destino-adicional {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+  background: #f8f9fa;
+  padding: 10px;
+  border-radius: 8px;
+  border-left: 3px solid #ff4500;
+}
+
+.destino-adicional input {
+  flex: 1;
+  margin: 0;
+  padding: 12px;
+}
+
+.btn-eliminar {
+  width: auto;
+  padding: 10px 15px;
+  margin: 0;
+  background: #dc3545;
+  color: white;
+  font-size: 14px;
+}
+
 /* RESPONSIVE PARA TABLETS */
 @media screen and (max-width: 900px) {
   body::before {
@@ -149,11 +177,20 @@ button:active { transform: translateY(0); }
     margin: 0 10px;
     padding: 30px 20px;
   }
+
+  .destino-adicional {
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .btn-eliminar {
+    width: 100%;
+  }
 }
 
 @media screen and (max-width: 400px) {
   body::before, body::after {
-    display: none; /* Ocultar en móviles muy pequeños */
+    display: none;
   }
   
   .container {
@@ -165,6 +202,29 @@ button:active { transform: translateY(0); }
     font-size: 24px;
   }
 }
+
+/* Contenedor de destinos */
+#destinosContainer {
+  margin: 15px 0;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+/* Scroll personalizado */
+#destinosContainer::-webkit-scrollbar {
+  width: 5px;
+}
+
+#destinosContainer::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+#destinosContainer::-webkit-scrollbar-thumb {
+  background: #ff4500;
+  border-radius: 10px;
+}
 </style>
 </head>
 <body>
@@ -173,7 +233,17 @@ button:active { transform: translateY(0); }
   <h2>🚀 Cotizador TuMotoExpress.cl</h2>
 
   <input type="text" id="inicio" placeholder="Dirección de origen">
-  <input type="text" id="destino" placeholder="Dirección de destino">
+  
+  <!-- Contenedor para múltiples destinos -->
+  <div id="destinosContainer">
+    <div class="destino-adicional" id="destino-0">
+      <input type="text" class="destino-input" placeholder="Dirección de destino 1">
+    </div>
+  </div>
+  
+  <!-- Botón para agregar más destinos -->
+  <button class="btn-agregar" onclick="agregarDestino()">➕ Agregar otro destino</button>
+  
   <input type="text" id="codigoCupon" placeholder="Cupón (opcional)">
   <small>Incluye comuna para mayor precisión</small>
 
@@ -200,16 +270,66 @@ button:active { transform: translateY(0); }
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD7ExvZ0pJBjs37LHwbOcWrUqpxg_V78mk&libraries=places&language=es" defer></script>
 
 <script>
+let contadorDestinos = 1;
+
 function initAutocomplete() {
   const options = { 
     types: ["geocode", "establishment"], 
     componentRestrictions: { country: "cl" }, 
     fields: ["formatted_address", "geometry", "name"] 
   };
+  
+  // Autocomplete para origen
   new google.maps.places.Autocomplete(document.getElementById("inicio"), options);
-  new google.maps.places.Autocomplete(document.getElementById("destino"), options);
+  
+  // Autocomplete para todos los destinos existentes
+  document.querySelectorAll('.destino-input').forEach(input => {
+    new google.maps.places.Autocomplete(input, options);
+  });
 }
-window.onload = initAutocomplete;
+
+function agregarDestino() {
+  contadorDestinos++;
+  
+  const container = document.getElementById('destinosContainer');
+  const nuevoDestino = document.createElement('div');
+  nuevoDestino.className = 'destino-adicional';
+  nuevoDestino.id = `destino-${contadorDestinos}`;
+  
+  nuevoDestino.innerHTML = `
+    <input type="text" class="destino-input" placeholder="Dirección de destino ${contadorDestinos + 1}">
+    <button class="btn-eliminar" onclick="eliminarDestino('${contadorDestinos}')">✖</button>
+  `;
+  
+  container.appendChild(nuevoDestino);
+  
+  // Inicializar autocomplete para el nuevo input
+  const options = { 
+    types: ["geocode", "establishment"], 
+    componentRestrictions: { country: "cl" }, 
+    fields: ["formatted_address", "geometry", "name"] 
+  };
+  new google.maps.places.Autocomplete(nuevoDestino.querySelector('input'), options);
+}
+
+function eliminarDestino(id) {
+  const elemento = document.getElementById(`destino-${id}`);
+  if (elemento && document.querySelectorAll('.destino-adicional').length > 1) {
+    elemento.remove();
+  } else {
+    alert('Debe haber al menos un destino');
+  }
+}
+
+function obtenerTodosLosDestinos() {
+  const destinos = [];
+  document.querySelectorAll('.destino-input').forEach(input => {
+    if (input.value.trim()) {
+      destinos.push(input.value.trim());
+    }
+  });
+  return destinos;
+}
 
 function obtenerMensajeHoraEstimado() {
     const ahora = new Date();
@@ -241,11 +361,16 @@ function obtenerMensajeHoraEstimado() {
 
 async function cotizar() {
   const inicio = document.getElementById("inicio").value;
-  const destino = document.getElementById("destino").value;
+  const destinos = obtenerTodosLosDestinos();
   const codigo_cupon = document.getElementById("codigoCupon").value.trim().toUpperCase();
   
-  if (!inicio || !destino) { 
-    alert("❌ Completa origen y destino"); 
+  if (!inicio) { 
+    alert("❌ Completa la dirección de origen"); 
+    return; 
+  }
+  
+  if (destinos.length === 0) { 
+    alert("❌ Agrega al menos un destino"); 
     return; 
   }
 
@@ -256,7 +381,7 @@ async function cotizar() {
     const response = await fetch("/cotizar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ inicio, destino, cupon: codigo_cupon })
+      body: JSON.stringify({ inicio, destinos, cupon: codigo_cupon })
     });
     
     const data = await response.json();
@@ -270,15 +395,24 @@ async function cotizar() {
     const resultadoDiv = document.getElementById("resultado");
     resultadoDiv.style.display = "block";
     
-    // Construir HTML base
+    // Construir HTML base con múltiples destinos
     let html = `
       <strong>📍 Origen:</strong> ${data.inicio}<br>
-      <strong>📍 Destino:</strong> ${data.destino}<br><br>
-      <strong>📏 Distancia:</strong> ${data.distancia_km.toFixed(2)} km<br>
-      <strong>💵 Neto:</strong> $${data.neto.toLocaleString('es-CL')}<br>
+      <strong>📍 Destinos:</strong><br>
     `;
     
-    // SOLO mostrar descuento SI realmente hay descuento Y el monto es mayor a 0
+    // Mostrar cada destino con su distancia y tiempo
+    data.destinos.forEach((dest, index) => {
+      html += `&nbsp;&nbsp;${index + 1}. ${dest.direccion}<br>
+               &nbsp;&nbsp;&nbsp;&nbsp;📏 ${dest.distancia_km.toFixed(2)} km | ⏱️ ${dest.tiempo_minutos} min<br>`;
+    });
+    
+    html += `<br><strong>📏 Distancia total:</strong> ${data.distancia_total_km.toFixed(2)} km<br>
+             <strong>⏱️ Tiempo total estimado:</strong> ${data.tiempo_total_minutos} min<br><br>
+             <strong>💵 Neto:</strong> $${data.neto.toLocaleString('es-CL')}<br>
+    `;
+    
+    // SOLO mostrar descuento SI realmente hay descuento
     if (data.descuentoValor && data.descuentoValor > 0 && data.descuentoTexto) {
       html += `<strong>🎟️ ${data.descuentoTexto}:</strong> -$${data.descuentoValor.toLocaleString('es-CL')}<br>`;
       html += `<strong>💵 Neto con descuento:</strong> $${data.netoConDescuento.toLocaleString('es-CL')}<br>`;
@@ -296,11 +430,18 @@ async function cotizar() {
 
     // Guardar datos de la cotización para usarlos después
     window.ultimaCotizacion = data;
-    window.datosViaje = { inicio, destino, cupon: codigo_cupon };
+    window.datosViaje = { inicio, destinos, cupon: codigo_cupon };
 
     // Botón Solicitar servicio (WhatsApp)
     const telefono = "56942325524";
-    const mensaje = encodeURIComponent(`Hola, solicito el servicio de TuMotoExpress.cl.\nCódigo de cotización: ${window.codigoCotizacion || 'Pendiente'}\nOrigen: ${data.inicio}\nDestino: ${data.destino}\nDistancia: ${data.distancia_km.toFixed(2)} km\nTotal: $${data.total.toLocaleString('es-CL')}\n${obtenerMensajeHoraEstimado()}`);
+    
+    // Crear mensaje con múltiples destinos
+    let mensajeDestinos = '';
+    data.destinos.forEach((dest, index) => {
+      mensajeDestinos += `\nDestino ${index + 1}: ${dest.direccion} (${dest.distancia_km.toFixed(2)} km - ${dest.tiempo_minutos} min)`;
+    });
+    
+    const mensaje = encodeURIComponent(`Hola, solicito el servicio de TuMotoExpress.cl.\nCódigo de cotización: ${data.codigoCotizacion || 'Pendiente'}\nOrigen: ${data.inicio}${mensajeDestinos}\nDistancia total: ${data.distancia_total_km.toFixed(2)} km\nTiempo total: ${data.tiempo_total_minutos} min\nTotal: $${data.total.toLocaleString('es-CL')}\n${obtenerMensajeHoraEstimado()}`);
     
     const btnSolicitar = document.getElementById("btnSolicitarServicio");
     btnSolicitar.style.display = "block";
@@ -319,31 +460,30 @@ async function cotizar() {
         return;
       }
       
-      // Validar formato de email
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(correo)) {
         alert("❌ Ingresa un correo válido");
         return;
       }
       
-      // Validar teléfono (9 dígitos)
       const telefonoRegex = /^[0-9]{9}$/;
       if (!telefonoRegex.test(telefonoC)) {
-        alert("❌ Ingresa un teléfono válido de 9 dígitos (ej: 912345678)");
+        alert("❌ Ingresa un teléfono válido de 9 dígitos");
         return;
       }
       
       try {
-        const response = await fetch("/cotizar", {
+        const response = await fetch("/enviar-correo", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
             inicio: window.datosViaje.inicio,
-            destino: window.datosViaje.destino,
+            destinos: window.datosViaje.destinos,
             cupon: window.datosViaje.cupon,
             nombre, 
             correo, 
-            telefono: telefonoC 
+            telefono: telefonoC,
+            cotizacion: window.ultimaCotizacion
           })
         });
         
@@ -351,7 +491,7 @@ async function cotizar() {
         if (result.error) {
           alert("❌ Error: " + result.error);
         } else {
-          alert("✅ ¡Correo enviado correctamente! Revisa tu bandeja de entrada.");
+          alert("✅ ¡Correo enviado correctamente!");
         }
       } catch (err) {
         console.error(err);
@@ -370,6 +510,11 @@ async function cotizar() {
     alert("❌ Error al cotizar: " + err.message); 
   }
 }
+
+// Reiniciar autocomplete cuando se carga la página
+window.onload = function() {
+  initAutocomplete();
+};
 </script>
 </body>
 </html>
