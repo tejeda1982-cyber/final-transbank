@@ -129,7 +129,7 @@ window.onload = initAutocomplete;
 
 function obtenerMensajeHoraEstimado() {
     const ahora = new Date();
-    const dia = ahora.getDay(); // 0=Domingo
+    const dia = ahora.getDay();
     const hora = ahora.getHours();
     const minutos = ahora.getMinutes();
     const diasSemana = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
@@ -156,9 +156,14 @@ async function cotizar() {
   const inicio = document.getElementById("inicio").value;
   const destino = document.getElementById("destino").value;
   const codigo_cupon = document.getElementById("codigoCupon").value.trim().toUpperCase();
-  if(!inicio || !destino){ alert("Completa origen y destino"); return; }
+  
+  if(!inicio || !destino){ 
+    alert("Completa origen y destino"); 
+    return; 
+  }
 
-  const spinner = document.getElementById("spinner"); spinner.style.display="block";
+  const spinner = document.getElementById("spinner"); 
+  spinner.style.display="block";
 
   try {
     const response = await fetch("/cotizar", {
@@ -166,28 +171,42 @@ async function cotizar() {
       headers:{"Content-Type":"application/json"},
       body: JSON.stringify({ inicio, destino, cupon: codigo_cupon })
     });
+    
     const data = await response.json();
     spinner.style.display="none";
-    if(data.error){ alert(data.error); return; }
+    
+    if(data.error){ 
+      alert(data.error); 
+      return; 
+    }
 
     const resultadoDiv = document.getElementById("resultado");
     resultadoDiv.style.display="block";
+    
+    // Construir HTML base
     let html = `
       <strong>📍 Origen:</strong> ${data.inicio}<br>
       <strong>📍 Destino:</strong> ${data.destino}<br><br>
       <strong>📏 Distancia:</strong> ${data.distancia_km.toFixed(2)} km<br>
       <strong>💵 Neto:</strong> $${data.neto}<br>
     `;
-    if(data.descuentoValor && data.descuentoTexto) {
+    
+    // SOLO mostrar descuento SI realmente hay descuento Y el monto es mayor a 0
+    if(data.descuentoValor && data.descuentoValor > 0 && data.descuentoTexto) {
       html += `<strong>🎟️ ${data.descuentoTexto}:</strong> -$${data.descuentoValor}<br>`;
       html += `<strong>💵 Neto con descuento:</strong> $${data.netoConDescuento}<br>`;
     }
+    
     html += `<strong>🧾 IVA:</strong> $${data.iva}<br><strong>💳 Total:</strong> <strong>$${data.total}</strong><br><br><em>${obtenerMensajeHoraEstimado()}</em>`;
     resultadoDiv.innerHTML = html;
 
     // Mostrar campos de cliente y botones
     const camposCliente = document.getElementById("camposCliente");
     camposCliente.style.display="block";
+
+    // Guardar datos de la cotización para usarlos después
+    window.ultimaCotizacion = data;
+    window.datosViaje = { inicio, destino, cupon: codigo_cupon };
 
     // Botón WhatsApp
     const telefono="56942325524";
@@ -203,12 +222,36 @@ async function cotizar() {
       const nombre = document.getElementById("nombreCliente").value;
       const correo = document.getElementById("correoCliente").value;
       const telefonoC = document.getElementById("telefonoCliente").value;
-      await fetch("/cotizar", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({ inicio, destino, cupon: codigo_cupon, nombre, correo, telefono:telefonoC })
-      });
-      alert("Correo enviado correctamente");
+      
+      if(!nombre || !correo || !telefonoC){
+        alert("Completa todos los datos del cliente");
+        return;
+      }
+      
+      try {
+        const response = await fetch("/cotizar", {
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({ 
+            inicio: window.datosViaje.inicio,
+            destino: window.datosViaje.destino,
+            cupon: window.datosViaje.cupon,
+            nombre, 
+            correo, 
+            telefono: telefonoC 
+          })
+        });
+        
+        const result = await response.json();
+        if(result.error){
+          alert("Error: " + result.error);
+        } else {
+          alert("Correo enviado correctamente");
+        }
+      } catch(err){
+        console.error(err);
+        alert("Error al enviar el correo");
+      }
     };
 
     // Botón Pagar
@@ -216,7 +259,11 @@ async function cotizar() {
     btnPagar.style.display="block";
     btnPagar.onclick = () => alert("Integración WebPay pendiente");
 
-  } catch(err){ spinner.style.display="none"; console.error(err); alert("Error al cotizar, revisa tu backend"); }
+  } catch(err){ 
+    spinner.style.display="none"; 
+    console.error(err); 
+    alert("Error al cotizar: " + err.message); 
+  }
 }
 </script>
 </body>
