@@ -24,7 +24,7 @@ body::before {
   height: 100%;
   background: url('logo.png') no-repeat 90% center;
   background-size: 400px;
-  opacity: 1;
+  opacity: 0.1;
   z-index: -1;
 }
 
@@ -73,7 +73,7 @@ button:active { transform: translateY(0); }
   height: 100%;
   background: url('logo.png') no-repeat 95% center;
   background-size: 140px;
-  opacity: 1;
+  opacity: 0.1;
   z-index: 0;
 }
 .resultado * { position: relative; z-index: 1; }
@@ -111,7 +111,10 @@ button:active { transform: translateY(0); }
     <input type="text" id="nombreCliente" placeholder="Nombre completo">
     <input type="email" id="correoCliente" placeholder="Correo electrónico">
     <input type="tel" id="telefonoCliente" placeholder="Teléfono (ej: 912345678)">
-    <button id="btnComprobar" class="btn-whatsapp">📱 Comprobar disponibilidad</button>
+    
+    <!-- BOTÓN CAMBIADO DE "Comprobar disponibilidad" A "Solicitar servicio" -->
+    <button id="btnSolicitarServicio" class="btn-whatsapp">📱 Solicitar servicio</button>
+    
     <button id="btnEnviarCorreo" class="btn-correo">📧 Enviar cotización por correo</button>
     <button id="btnPagar" class="btn-pagar">💳 Pagar con WebPay</button>
   </div>
@@ -132,53 +135,32 @@ function initAutocomplete() {
 }
 window.onload = initAutocomplete;
 
-/* 🔵 FUNCIÓN MODIFICADA SEGÚN TU LÓGICA EXACTA */
 function obtenerMensajeHoraEstimado() {
     const ahora = new Date();
-    const dia = ahora.getDay(); // 0=Domingo, 1=Lunes ... 6=Sábado
+    const dia = ahora.getDay();
     const hora = ahora.getHours();
     const minutos = ahora.getMinutes();
-
-    const diasSemana = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
-
-    function sumar80Minutos(fecha) {
-        return new Date(fecha.getTime() + 80 * 60000);
+    const diasSemana = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+    
+    function sumar80Minutos(fecha) { 
+        return new Date(fecha.getTime() + 80 * 60000); 
     }
 
-    // 1️⃣ Lunes a jueves entre 00:00 y 08:59
     if (dia >= 1 && dia <= 4 && hora < 9) {
-        return `Gracias por cotizar en TuMotoExpress.cl. En este momento nos encontramos fuera de horario comercial, pero podemos gestionar tu servicio para hoy ${diasSemana[dia]} durante la mañana (sujeto a disponibilidad).`;
+        return `Gracias por cotizar. Estamos fuera de horario, pero podemos gestionar tu servicio para hoy ${diasSemana[dia]} durante la mañana.`;
     }
-
-    // 2️⃣ Lunes a viernes entre 09:00 y 15:40
     if (dia >= 1 && dia <= 5) {
-        if (
-            hora > 9 && hora < 15 ||
-            hora === 9 ||
-            (hora === 15 && minutos <= 40)
-        ) {
+        if (hora >= 9 && (hora < 15 || (hora === 15 && minutos <= 40))) {
             const fechaEstimado = sumar80Minutos(ahora);
-            const horasStr = fechaEstimado.getHours().toString().padStart(2, '0');
-            const minutosStr = fechaEstimado.getMinutes().toString().padStart(2, '0');
-
-            return `Gracias por cotizar en TuMotoExpress.cl. Podemos gestionar tu servicio a partir de las ${horasStr}:${minutosStr} horas aproximadamente (sujeto a disponibilidad).`;
+            return `Podemos gestionar tu servicio a partir de las ${fechaEstimado.getHours().toString().padStart(2,'0')}:${fechaEstimado.getMinutes().toString().padStart(2,'0')} hrs.`;
         }
     }
-
-    // 3️⃣ Lunes a jueves después de 15:40
-    if (dia >= 1 && dia <= 4) {
-        const manana = new Date(ahora);
+    if (dia >= 1 && dia <= 4 && hora > 15) {
+        const manana = new Date(ahora); 
         manana.setDate(ahora.getDate() + 1);
-        return `Gracias por cotizar en TuMotoExpress.cl En este momento nos encontramos fuera de horario comercial, podemos gestionar tu servicio para mañana ${diasSemana[manana.getDay()]} durante la mañana (sujeto a disponibilidad).`;
+        return `Fuera de horario, podemos gestionar tu servicio para mañana ${diasSemana[manana.getDay()]} durante la mañana.`;
     }
-
-    // 4️⃣ Viernes después de 15:40, sábado o domingo
-    const lunes = new Date(ahora);
-    while (lunes.getDay() !== 1) {
-        lunes.setDate(lunes.getDate() + 1);
-    }
-
-    return `Gracias por cotizar en TuMotoExpress.cl En este momento nos encontramos fuera de horario comercial, podemos gestionar tu servicio para el día lunes durante la mañana (sujeto a disponibilidad).`;
+    return `Podemos gestionar tu servicio el lunes durante la mañana.`;
 }
 
 async function cotizar() {
@@ -240,13 +222,13 @@ async function cotizar() {
     window.ultimaCotizacion = data;
     window.datosViaje = { inicio, destino, cupon: codigo_cupon };
 
-    // Botón WhatsApp
+    // Botón WhatsApp - AHORA DICE "Solicitar servicio"
     const telefono = "56942325524";
-    const mensaje = encodeURIComponent(`Hola, acepto el servicio de TuMotoExpress.cl.\nOrigen: ${data.inicio}\nDestino: ${data.destino}\nDistancia: ${data.distancia_km.toFixed(2)} km\nTotal: $${data.total.toLocaleString('es-CL')}\n${obtenerMensajeHoraEstimado()}`);
+    const mensaje = encodeURIComponent(`Hola, solicito el servicio de TuMotoExpress.cl.\nCódigo de cotización: ${window.codigoCotizacion || 'Pendiente'}\nOrigen: ${data.inicio}\nDestino: ${data.destino}\nDistancia: ${data.distancia_km.toFixed(2)} km\nTotal: $${data.total.toLocaleString('es-CL')}\n${obtenerMensajeHoraEstimado()}`);
     
-    const btnWhatsapp = document.getElementById("btnComprobar");
-    btnWhatsapp.style.display = "block";
-    btnWhatsapp.onclick = () => window.open(`https://wa.me/${telefono}?text=${mensaje}`, "_blank");
+    const btnSolicitar = document.getElementById("btnSolicitarServicio");
+    btnSolicitar.style.display = "block";
+    btnSolicitar.onclick = () => window.open(`https://wa.me/${telefono}?text=${mensaje}`, "_blank");
 
     // Botón Enviar Correo
     const btnCorreo = document.getElementById("btnEnviarCorreo");
