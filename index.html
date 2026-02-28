@@ -21,8 +21,8 @@ body::before {
   content: "";
   position: fixed;
   top: 50%;
-  left: 50%;
-  transform: translate(-150%, -50%); /* Ajusta este valor para mover más o menos hacia el centro */
+  left: 0; /* Pegado al borde izquierdo */
+  transform: translateY(-50%); /* Solo mueve verticalmente para centrar */
   width: 540px;
   height: 540px;
   background: url('logo.png') no-repeat center;
@@ -37,8 +37,8 @@ body::after {
   content: "";
   position: fixed;
   top: 50%;
-  right: 50%;
-  transform: translate(150%, -50%); /* Ajusta este valor para mover más o menos hacia el centro */
+  right: 0; /* Pegado al borde derecho */
+  transform: translateY(-50%); /* Solo mueve verticalmente para centrar */
   width: 540px;
   height: 540px;
   background: url('logo.png') no-repeat center;
