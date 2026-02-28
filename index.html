@@ -225,6 +225,35 @@ button:active { transform: translateY(0); }
   background: #ff4500;
   border-radius: 10px;
 }
+
+/* Estilo para el resumen de tramos */
+.tramo-resumen {
+  background: #f9f9f9;
+  padding: 10px;
+  margin: 8px 0;
+  border-left: 3px solid #ff4500;
+  border-radius: 8px;
+}
+
+.tramo-resumen strong {
+  color: #333;
+  display: block;
+  margin-bottom: 5px;
+}
+
+.tramo-detalle {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  color: #666;
+  flex-wrap: wrap;
+}
+
+.tramo-detalle span {
+  background: #f0f0f0;
+  padding: 3px 8px;
+  border-radius: 12px;
+}
 </style>
 </head>
 <body>
@@ -395,18 +424,22 @@ async function cotizar() {
     const resultadoDiv = document.getElementById("resultado");
     resultadoDiv.style.display = "block";
     
-    // 🔴 CORREGIDO: Usar data.tramos en lugar de data.destinos
+    // 🔴 CORREGIDO: Mostrar origen y luego los tramos correctamente
     let html = `
-      <strong>📍 Origen:</strong> ${data.origen}<br>
-      <strong>📍 Tramos:</strong><br>
+      <strong>📍 Origen:</strong> ${data.origen}<br><br>
+      <strong>📍 Tramos del recorrido:</strong><br>
     `;
     
-    // Mostrar cada tramo
+    // Mostrar cada tramo (desde origen hasta destino 1, luego destino 1 a destino 2, etc.)
     data.tramos.forEach((tramo, index) => {
       html += `
-        <div style="background:#f9f9f9; padding:8px; margin:5px 0; border-left:3px solid #ff4500;">
-          <strong>Tramo ${index + 1}:</strong> ${tramo.desde} → ${tramo.direccion}<br>
-          📏 ${tramo.distancia_km.toFixed(2)} km | ⏱️ ${tramo.tiempo_minutos} min | 💰 $${tramo.precio.toLocaleString('es-CL')}
+        <div class="tramo-resumen">
+          <strong>Tramo ${index + 1}: ${tramo.desde} → ${tramo.direccion}</strong>
+          <div class="tramo-detalle">
+            <span>📏 ${tramo.distancia_km.toFixed(2)} km</span>
+            <span>⏱️ ${tramo.tiempo_minutos} min</span>
+            <span>💰 $${tramo.precio.toLocaleString('es-CL')}</span>
+          </div>
         </div>
       `;
     });
@@ -445,7 +478,7 @@ async function cotizar() {
       mensajeTramos += `\nTramo ${index + 1}: ${tramo.desde} → ${tramo.direccion} (${tramo.distancia_km.toFixed(2)} km - $${tramo.precio.toLocaleString('es-CL')})`;
     });
     
-    const mensaje = encodeURIComponent(`Hola, solicito el servicio de TuMotoExpress.cl.\nCódigo de cotización: ${data.codigoCotizacion || 'Pendiente'}\nOrigen: ${data.origen}${mensajeTramos}\nDistancia total: ${data.distancia_total_km.toFixed(2)} km\nTiempo total: ${data.tiempo_total_minutos} min\nTotal: $${data.total.toLocaleString('es-CL')}\n${obtenerMensajeHoraEstimado()}`);
+    const mensaje = encodeURIComponent(`Hola, solicito el servicio de TuMotoExpress.cl.\nCódigo de cotización: ${data.codigoCotizacion || 'Pendiente'}\nOrigen: ${data.origen}${mensajeTramos}\n\nDistancia total: ${data.distancia_total_km.toFixed(2)} km\nTiempo total: ${data.tiempo_total_minutos} min\nTotal: $${data.total.toLocaleString('es-CL')}\n\n${obtenerMensajeHoraEstimado()}`);
     
     const btnSolicitar = document.getElementById("btnSolicitarServicio");
     btnSolicitar.style.display = "block";
