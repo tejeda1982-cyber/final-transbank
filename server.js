@@ -132,6 +132,16 @@ function obtenerMensajeHoraEstimado() {
   return `Podemos gestionar tu servicio el lunes durante la mañana.`;
 }
 
+// 🔴 FUNCIÓN PARA GENERAR CÓDIGO ALFANUMÉRICO ALEATORIO
+function generarCodigoCotizacion() {
+  const caracteres = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let codigo = '';
+  for (let i = 0; i < 8; i++) {
+    codigo += caracteres.charAt(Math.floor(Math.random() * caracteres.length));
+  }
+  return codigo;
+}
+
 // ENVIAR CORREOS (CLIENTE Y COPIA)
 async function enviarCorreos(cliente, cotizacion) {
   console.log("📧 Iniciando envío de correos...");
@@ -162,13 +172,17 @@ async function enviarCorreos(cliente, cotizacion) {
       return false;
     }
 
+    // 🔴 GENERAR CÓDIGO ALFANUMÉRICO ALEATORIO
+    const codigoCotizacion = generarCodigoCotizacion();
+    console.log("🔑 Código de cotización generado:", codigoCotizacion);
+
     // Formatear números
     const formatearNumero = (num) => {
       if (!num && num !== 0) return "0";
       return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     };
 
-    // Procesar template
+    // Procesar template - INCLUYENDO EL CÓDIGO
     let htmlCliente = htmlTemplate
       .replace(/{{nombre}}/g, cliente.nombre || "Cliente")
       .replace(/{{origen}}/g, cotizacion.inicio || "")
@@ -178,7 +192,9 @@ async function enviarCorreos(cliente, cotizacion) {
       .replace(/{{iva}}/g, formatearNumero(cotizacion.iva))
       .replace(/{{total}}/g, formatearNumero(cotizacion.total))
       .replace(/{{telefono}}/g, cliente.telefono || "")
-      .replace(/{{mensajeHorario}}/g, obtenerMensajeHoraEstimado());
+      .replace(/{{mensajeHorario}}/g, obtenerMensajeHoraEstimado())
+      // 🔴 NUEVO: Reemplazar el código en el template
+      .replace(/{{codigoCotizacion}}/g, codigoCotizacion);
 
     // Procesar descuento condicional
     if (cotizacion.descuentoValor && cotizacion.descuentoValor > 0) {
@@ -191,16 +207,17 @@ async function enviarCorreos(cliente, cotizacion) {
     }
 
     // Configurar el remitente con tu dominio verificado
-    const fromEmail = "contacto@tumotoexpress.cl"; // Usando tu dominio verificado
+    const fromEmail = "contacto@tumotoexpress.cl";
     
     console.log("📧 Enviando a CLIENTE:", cliente.correo);
     console.log("📧 Desde:", fromEmail);
     
-    // Enviar al CLIENTE
+    // Enviar al CLIENTE - CON CÓDIGO EN ASUNTO
     const resultCliente = await resend.emails.send({
       from: fromEmail,
       to: cliente.correo,
-      subject: `🚀 Tu cotización en TuMotoExpress.cl - $${formatearNumero(cotizacion.total)}`,
+      // 🔴 NUEVO: Incluir código en el asunto
+      subject: `🚀 Cotización #${codigoCotizacion} - TuMotoExpress.cl - $${formatearNumero(cotizacion.total)}`,
       html: htmlCliente
     });
     console.log("✅ Correo enviado a cliente. ID:", resultCliente.id);
@@ -208,12 +225,13 @@ async function enviarCorreos(cliente, cotizacion) {
     // Esperar un momento entre envíos
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Enviar COPIA a nosotros
+    // Enviar COPIA a nosotros - CON CÓDIGO EN ASUNTO
     console.log("📧 Enviando COPIA a contacto@tumotoexpress.cl");
     const resultCopia = await resend.emails.send({
       from: fromEmail,
       to: ["contacto@tumotoexpress.cl"],
-      subject: `📊 COPIA: Cotización para ${cliente.nombre || "cliente"} - $${formatearNumero(cotizacion.total)}`,
+      // 🔴 NUEVO: Incluir código en el asunto de la copia
+      subject: `📊 COPIA #${codigoCotizacion}: Cotización para ${cliente.nombre || "cliente"} - $${formatearNumero(cotizacion.total)}`,
       html: htmlCliente
     });
     console.log("✅ Copia enviada a interno. ID:", resultCopia.id);
