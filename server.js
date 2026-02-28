@@ -47,14 +47,15 @@ function leerTarifas() {
 let { tarifa_base, km_adicional_6_10, km_adicional_10_mas, cupones } = leerTarifas();
 let porcentajeAjuste = 0;
 
-// CALCULAR DISTANCIA GOOGLE
+// 🔴 FUNCIÓN MODIFICADA - AHORA SIEMPRE OBTIENE LA RUTA MÁS CORTA
 async function calcularDistancia(inicio, destino) {
   if (!process.env.GOOGLE_MAPS_BACKEND_KEY) {
     console.error("❌ ERROR: GOOGLE_MAPS_BACKEND_KEY no está configurada");
     return 8.5;
   }
   
-  const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(inicio)}&destination=${encodeURIComponent(destino)}&region=CL&mode=driving&key=${process.env.GOOGLE_MAPS_BACKEND_KEY}`;
+  // 🔴 AÑADIMOS &alternatives=true para obtener múltiples rutas
+  const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(inicio)}&destination=${encodeURIComponent(destino)}&region=CL&mode=driving&alternatives=true&key=${process.env.GOOGLE_MAPS_BACKEND_KEY}`;
   
   try {
     console.log("🔍 Calculando distancia entre:", inicio, "y", destino);
@@ -66,12 +67,27 @@ async function calcularDistancia(inicio, destino) {
       return 8.5;
     }
     
-    const distancia = data.routes?.[0]?.legs?.[0]?.distance?.value;
-    if (distancia) {
-      const km = distancia / 1000;
-      console.log("✅ Distancia calculada:", km.toFixed(2), "km");
+    // 🔴 NUEVA LÓGICA: Buscar la ruta con la distancia MÁS CORTA
+    if (data.routes && data.routes.length > 0) {
+      let rutaMasCorta = data.routes[0];
+      let distanciaMinima = rutaMasCorta.legs?.[0]?.distance?.value || Infinity;
+      
+      // Si hay múltiples rutas, encontrar la de menor distancia
+      if (data.routes.length > 1) {
+        for (let i = 1; i < data.routes.length; i++) {
+          const distanciaActual = data.routes[i].legs?.[0]?.distance?.value || Infinity;
+          if (distanciaActual < distanciaMinima) {
+            distanciaMinima = distanciaActual;
+            rutaMasCorta = data.routes[i];
+          }
+        }
+      }
+      
+      const km = distanciaMinima / 1000;
+      console.log(`✅ Ruta más corta encontrada: ${km.toFixed(2)} km (de ${data.routes.length} ruta(s) disponible(s))`);
       return km;
     }
+    
     return 8.5;
   } catch (err) {
     console.error("❌ Error en Google Directions API:", err.message);
@@ -132,7 +148,7 @@ function obtenerMensajeHoraEstimado() {
   return `Podemos gestionar tu servicio el lunes durante la mañana.`;
 }
 
-// 🔴 FUNCIÓN PARA GENERAR CÓDIGO ALFANUMÉRICO ALEATORIO
+// FUNCIÓN PARA GENERAR CÓDIGO ALFANUMÉRICO ALEATORIO
 function generarCodigoCotizacion() {
   const caracteres = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let codigo = '';
@@ -172,7 +188,7 @@ async function enviarCorreos(cliente, cotizacion) {
       return false;
     }
 
-    // 🔴 GENERAR CÓDIGO ALFANUMÉRICO ALEATORIO
+    // GENERAR CÓDIGO ALFANUMÉRICO ALEATORIO
     const codigoCotizacion = generarCodigoCotizacion();
     console.log("🔑 Código de cotización generado:", codigoCotizacion);
 
@@ -193,7 +209,7 @@ async function enviarCorreos(cliente, cotizacion) {
       .replace(/{{total}}/g, formatearNumero(cotizacion.total))
       .replace(/{{telefono}}/g, cliente.telefono || "")
       .replace(/{{mensajeHorario}}/g, obtenerMensajeHoraEstimado())
-      // 🔴 NUEVO: Reemplazar el código en el template
+      // NUEVO: Reemplazar el código en el template
       .replace(/{{codigoCotizacion}}/g, codigoCotizacion);
 
     // Procesar descuento condicional
@@ -216,7 +232,7 @@ async function enviarCorreos(cliente, cotizacion) {
     const resultCliente = await resend.emails.send({
       from: fromEmail,
       to: cliente.correo,
-      // 🔴 NUEVO: Incluir código en el asunto
+      // NUEVO: Incluir código en el asunto
       subject: `🚀 Cotización #${codigoCotizacion} - TuMotoExpress.cl - $${formatearNumero(cotizacion.total)}`,
       html: htmlCliente
     });
@@ -230,7 +246,7 @@ async function enviarCorreos(cliente, cotizacion) {
     const resultCopia = await resend.emails.send({
       from: fromEmail,
       to: ["contacto@tumotoexpress.cl"],
-      // 🔴 NUEVO: Incluir código en el asunto de la copia
+      // NUEVO: Incluir código en el asunto de la copia
       subject: `📊 COPIA #${codigoCotizacion}: Cotización para ${cliente.nombre || "cliente"} - $${formatearNumero(cotizacion.total)}`,
       html: htmlCliente
     });
@@ -259,7 +275,7 @@ app.post("/cotizar", async (req, res) => {
       return res.status(400).json({ error: "Faltan datos de origen o destino" });
     }
 
-    // Calcular distancia
+    // Calcular distancia (AHORA SIEMPRE LA MÁS CORTA)
     const distancia_km = await calcularDistancia(inicio, destino);
     
     // Calcular precio
