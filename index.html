@@ -24,7 +24,7 @@ body::before {
   height: 100%;
   background: url('logo.png') no-repeat 90% center;
   background-size: 400px;
-  opacity: 1;
+  opacity: 0.1;
   z-index: -1;
 }
 
@@ -39,13 +39,14 @@ body::before {
 }
 
 h2 { font-size: 28px; margin-bottom: 25px; color: #111; }
-input { width: 100%; padding: 16px; margin: 12px 0; border-radius: 12px; border: 1px solid #ccc; font-size: 16px; transition: all 0.2s; }
-input:focus { border-color: #111; box-shadow: 0 0 8px rgba(0,0,0,0.1); }
+input { width: 100%; padding: 16px; margin: 12px 0; border-radius: 12px; border: 1px solid #ccc; font-size: 16px; transition: all 0.2s; box-sizing: border-box; }
+input:focus { border-color: #111; box-shadow: 0 0 8px rgba(0,0,0,0.1); outline: none; }
 
 small { display: block; margin-bottom: 10px; color: #555; font-size: 14px; }
 
 button { width: 100%; padding: 16px; margin-top: 10px; border-radius: 12px; border: none; font-size: 16px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
-button:hover { opacity: 0.9; }
+button:hover { opacity: 0.9; transform: translateY(-1px); }
+button:active { transform: translateY(0); }
 
 .btn-cotizar { background: #111; color: white; }
 .btn-whatsapp { background: #25D366; color: white; display: none; margin-top: 15px; }
@@ -72,7 +73,7 @@ button:hover { opacity: 0.9; }
   height: 100%;
   background: url('logo.png') no-repeat 95% center;
   background-size: 140px;
-  opacity: 1;
+  opacity: 0.1;
   z-index: 0;
 }
 .resultado * { position: relative; z-index: 1; }
@@ -107,12 +108,12 @@ button:hover { opacity: 0.9; }
 
   <!-- CAMPOS CLIENTE, OCULTOS AL INICIO -->
   <div id="camposCliente" style="display:none;">
-    <input type="text" id="nombreCliente" placeholder="Nombre">
-    <input type="text" id="correoCliente" placeholder="Correo">
-    <input type="text" id="telefonoCliente" placeholder="Teléfono">
-    <button id="btnComprobar" class="btn-whatsapp">Comprobar disponibilidad</button>
-    <button id="btnEnviarCorreo" class="btn-correo">Enviar correo</button>
-    <button id="btnPagar" class="btn-pagar">Pagar con WebPay</button>
+    <input type="text" id="nombreCliente" placeholder="Nombre completo">
+    <input type="email" id="correoCliente" placeholder="Correo electrónico">
+    <input type="tel" id="telefonoCliente" placeholder="Teléfono (ej: 912345678)">
+    <button id="btnComprobar" class="btn-whatsapp">📱 Comprobar disponibilidad</button>
+    <button id="btnEnviarCorreo" class="btn-correo">📧 Enviar cotización por correo</button>
+    <button id="btnPagar" class="btn-pagar">💳 Pagar con WebPay</button>
   </div>
 
 </div>
@@ -121,35 +122,63 @@ button:hover { opacity: 0.9; }
 
 <script>
 function initAutocomplete() {
-  const options = { types:["geocode","establishment"], componentRestrictions:{country:"cl"}, fields:["formatted_address","geometry","name"] };
+  const options = { 
+    types: ["geocode", "establishment"], 
+    componentRestrictions: { country: "cl" }, 
+    fields: ["formatted_address", "geometry", "name"] 
+  };
   new google.maps.places.Autocomplete(document.getElementById("inicio"), options);
   new google.maps.places.Autocomplete(document.getElementById("destino"), options);
 }
 window.onload = initAutocomplete;
 
+/* 🔵 FUNCIÓN MODIFICADA SEGÚN TU LÓGICA EXACTA */
 function obtenerMensajeHoraEstimado() {
     const ahora = new Date();
-    const dia = ahora.getDay();
+    const dia = ahora.getDay(); // 0=Domingo, 1=Lunes ... 6=Sábado
     const hora = ahora.getHours();
     const minutos = ahora.getMinutes();
-    const diasSemana = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
-    function sumar80Minutos(fecha) { return new Date(fecha.getTime() + 80 * 60000); }
 
+    const diasSemana = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+
+    function sumar80Minutos(fecha) {
+        return new Date(fecha.getTime() + 80 * 60000);
+    }
+
+    // 1️⃣ Lunes a jueves entre 00:00 y 08:59
     if (dia >= 1 && dia <= 4 && hora < 9) {
         return `Gracias por cotizar en TuMotoExpress.cl. En este momento nos encontramos fuera de horario comercial, pero podemos gestionar tu servicio para hoy ${diasSemana[dia]} durante la mañana (sujeto a disponibilidad).`;
     }
+
+    // 2️⃣ Lunes a viernes entre 09:00 y 15:40
     if (dia >= 1 && dia <= 5) {
-        if (hora >= 9 && (hora < 15 || (hora === 15 && minutos <= 40))) {
+        if (
+            hora > 9 && hora < 15 ||
+            hora === 9 ||
+            (hora === 15 && minutos <= 40)
+        ) {
             const fechaEstimado = sumar80Minutos(ahora);
-            return `Gracias por cotizar en TuMotoExpress.cl. Podemos gestionar tu servicio a partir de las ${fechaEstimado.getHours().toString().padStart(2,'0')}:${fechaEstimado.getMinutes().toString().padStart(2,'0')} horas aproximadamente (sujeto a disponibilidad).`;
+            const horasStr = fechaEstimado.getHours().toString().padStart(2, '0');
+            const minutosStr = fechaEstimado.getMinutes().toString().padStart(2, '0');
+
+            return `Gracias por cotizar en TuMotoExpress.cl. Podemos gestionar tu servicio a partir de las ${horasStr}:${minutosStr} horas aproximadamente (sujeto a disponibilidad).`;
         }
     }
-    if (dia >= 1 && dia <= 4 && hora > 15) {
-        const manana = new Date(ahora); manana.setDate(ahora.getDate()+1);
-        return `Gracias por cotizar en TuMotoExpress.cl. Fuera de horario comercial, podemos gestionar tu servicio para mañana ${diasSemana[manana.getDay()]} durante la mañana (sujeto a disponibilidad).`;
+
+    // 3️⃣ Lunes a jueves después de 15:40
+    if (dia >= 1 && dia <= 4) {
+        const manana = new Date(ahora);
+        manana.setDate(ahora.getDate() + 1);
+        return `Gracias por cotizar en TuMotoExpress.cl En este momento nos encontramos fuera de horario comercial, podemos gestionar tu servicio para mañana ${diasSemana[manana.getDay()]} durante la mañana (sujeto a disponibilidad).`;
     }
-    const lunes = new Date(ahora); while(lunes.getDay()!==1){lunes.setDate(lunes.getDate()+1);}
-    return `Gracias por cotizar en TuMotoExpress.cl. Fuera de horario comercial, podemos gestionar tu servicio para el lunes durante la mañana (sujeto a disponibilidad).`;
+
+    // 4️⃣ Viernes después de 15:40, sábado o domingo
+    const lunes = new Date(ahora);
+    while (lunes.getDay() !== 1) {
+        lunes.setDate(lunes.getDate() + 1);
+    }
+
+    return `Gracias por cotizar en TuMotoExpress.cl En este momento nos encontramos fuera de horario comercial, podemos gestionar tu servicio para el día lunes durante la mañana (sujeto a disponibilidad).`;
 }
 
 async function cotizar() {
@@ -157,81 +186,99 @@ async function cotizar() {
   const destino = document.getElementById("destino").value;
   const codigo_cupon = document.getElementById("codigoCupon").value.trim().toUpperCase();
   
-  if(!inicio || !destino){ 
-    alert("Completa origen y destino"); 
+  if (!inicio || !destino) { 
+    alert("❌ Completa origen y destino"); 
     return; 
   }
 
   const spinner = document.getElementById("spinner"); 
-  spinner.style.display="block";
+  spinner.style.display = "block";
 
   try {
     const response = await fetch("/cotizar", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ inicio, destino, cupon: codigo_cupon })
     });
     
     const data = await response.json();
-    spinner.style.display="none";
+    spinner.style.display = "none";
     
-    if(data.error){ 
-      alert(data.error); 
+    if (data.error) { 
+      alert("❌ " + data.error); 
       return; 
     }
 
     const resultadoDiv = document.getElementById("resultado");
-    resultadoDiv.style.display="block";
+    resultadoDiv.style.display = "block";
     
     // Construir HTML base
     let html = `
       <strong>📍 Origen:</strong> ${data.inicio}<br>
       <strong>📍 Destino:</strong> ${data.destino}<br><br>
       <strong>📏 Distancia:</strong> ${data.distancia_km.toFixed(2)} km<br>
-      <strong>💵 Neto:</strong> $${data.neto}<br>
+      <strong>💵 Neto:</strong> $${data.neto.toLocaleString('es-CL')}<br>
     `;
     
     // SOLO mostrar descuento SI realmente hay descuento Y el monto es mayor a 0
-    if(data.descuentoValor && data.descuentoValor > 0 && data.descuentoTexto) {
-      html += `<strong>🎟️ ${data.descuentoTexto}:</strong> -$${data.descuentoValor}<br>`;
-      html += `<strong>💵 Neto con descuento:</strong> $${data.netoConDescuento}<br>`;
+    if (data.descuentoValor && data.descuentoValor > 0 && data.descuentoTexto) {
+      html += `<strong>🎟️ ${data.descuentoTexto}:</strong> -$${data.descuentoValor.toLocaleString('es-CL')}<br>`;
+      html += `<strong>💵 Neto con descuento:</strong> $${data.netoConDescuento.toLocaleString('es-CL')}<br>`;
     }
     
-    html += `<strong>🧾 IVA:</strong> $${data.iva}<br><strong>💳 Total:</strong> <strong>$${data.total}</strong><br><br><em>${obtenerMensajeHoraEstimado()}</em>`;
+    html += `<strong>🧾 IVA:</strong> $${data.iva.toLocaleString('es-CL')}<br>
+             <strong>💳 Total:</strong> <strong style="font-size: 20px;">$${data.total.toLocaleString('es-CL')}</strong><br><br>
+             <em>${obtenerMensajeHoraEstimado()}</em>`;
+    
     resultadoDiv.innerHTML = html;
 
     // Mostrar campos de cliente y botones
     const camposCliente = document.getElementById("camposCliente");
-    camposCliente.style.display="block";
+    camposCliente.style.display = "block";
 
     // Guardar datos de la cotización para usarlos después
     window.ultimaCotizacion = data;
     window.datosViaje = { inicio, destino, cupon: codigo_cupon };
 
     // Botón WhatsApp
-    const telefono="56942325524";
-    const mensaje = encodeURIComponent(`Hola, acepto el servicio de TuMotoExpress.cl.\nOrigen: ${data.inicio}\nDestino: ${data.destino}\nDistancia: ${data.distancia_km.toFixed(2)} km\nTotal: $${data.total}\n${obtenerMensajeHoraEstimado()}`);
+    const telefono = "56942325524";
+    const mensaje = encodeURIComponent(`Hola, acepto el servicio de TuMotoExpress.cl.\nOrigen: ${data.inicio}\nDestino: ${data.destino}\nDistancia: ${data.distancia_km.toFixed(2)} km\nTotal: $${data.total.toLocaleString('es-CL')}\n${obtenerMensajeHoraEstimado()}`);
+    
     const btnWhatsapp = document.getElementById("btnComprobar");
-    btnWhatsapp.style.display="block";
-    btnWhatsapp.onclick = () => window.open(`https://wa.me/${telefono}?text=${mensaje}`,"_blank");
+    btnWhatsapp.style.display = "block";
+    btnWhatsapp.onclick = () => window.open(`https://wa.me/${telefono}?text=${mensaje}`, "_blank");
 
     // Botón Enviar Correo
     const btnCorreo = document.getElementById("btnEnviarCorreo");
-    btnCorreo.style.display="block";
+    btnCorreo.style.display = "block";
     btnCorreo.onclick = async () => {
       const nombre = document.getElementById("nombreCliente").value;
       const correo = document.getElementById("correoCliente").value;
       const telefonoC = document.getElementById("telefonoCliente").value;
       
-      if(!nombre || !correo || !telefonoC){
-        alert("Completa todos los datos del cliente");
+      if (!nombre || !correo || !telefonoC) {
+        alert("❌ Completa todos los datos del cliente");
+        return;
+      }
+      
+      // Validar formato de email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(correo)) {
+        alert("❌ Ingresa un correo válido");
+        return;
+      }
+      
+      // Validar teléfono (9 dígitos)
+      const telefonoRegex = /^[0-9]{9}$/;
+      if (!telefonoRegex.test(telefonoC)) {
+        alert("❌ Ingresa un teléfono válido de 9 dígitos (ej: 912345678)");
         return;
       }
       
       try {
         const response = await fetch("/cotizar", {
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
             inicio: window.datosViaje.inicio,
             destino: window.datosViaje.destino,
@@ -243,26 +290,26 @@ async function cotizar() {
         });
         
         const result = await response.json();
-        if(result.error){
-          alert("Error: " + result.error);
+        if (result.error) {
+          alert("❌ Error: " + result.error);
         } else {
-          alert("Correo enviado correctamente");
+          alert("✅ ¡Correo enviado correctamente! Revisa tu bandeja de entrada.");
         }
-      } catch(err){
+      } catch (err) {
         console.error(err);
-        alert("Error al enviar el correo");
+        alert("❌ Error al enviar el correo");
       }
     };
 
     // Botón Pagar
     const btnPagar = document.getElementById("btnPagar");
-    btnPagar.style.display="block";
-    btnPagar.onclick = () => alert("Integración WebPay pendiente");
+    btnPagar.style.display = "block";
+    btnPagar.onclick = () => alert("⏳ Integración WebPay próximamente");
 
-  } catch(err){ 
-    spinner.style.display="none"; 
+  } catch (err) { 
+    spinner.style.display = "none"; 
     console.error(err); 
-    alert("Error al cotizar: " + err.message); 
+    alert("❌ Error al cotizar: " + err.message); 
   }
 }
 </script>
