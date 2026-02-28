@@ -51,7 +51,7 @@ let porcentajeAjuste = 0;
 async function calcularDistancia(inicio, destino) {
   if (!process.env.GOOGLE_MAPS_BACKEND_KEY) {
     console.error("❌ ERROR: GOOGLE_MAPS_BACKEND_KEY no está configurada");
-    return 8.5; // Distancia de prueba para desarrollo
+    return 8.5;
   }
   
   const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(inicio)}&destination=${encodeURIComponent(destino)}&region=CL&mode=driving&key=${process.env.GOOGLE_MAPS_BACKEND_KEY}`;
@@ -63,7 +63,7 @@ async function calcularDistancia(inicio, destino) {
     
     if (data.status !== "OK") {
       console.error("❌ Google Directions API error:", data.error_message || data.status);
-      return 8.5; // Distancia de prueba
+      return 8.5;
     }
     
     const distancia = data.routes?.[0]?.legs?.[0]?.distance?.value;
@@ -75,7 +75,7 @@ async function calcularDistancia(inicio, destino) {
     return 8.5;
   } catch (err) {
     console.error("❌ Error en Google Directions API:", err.message);
-    return 8.5; // Distancia de prueba
+    return 8.5;
   }
 }
 
@@ -135,8 +135,7 @@ function obtenerMensajeHoraEstimado() {
 // ENVIAR CORREOS (CLIENTE Y COPIA)
 async function enviarCorreos(cliente, cotizacion) {
   console.log("📧 Iniciando envío de correos...");
-  console.log("📧 Cliente:", cliente);
-  console.log("📧 Cotización:", cotizacion);
+  console.log("📧 Cliente:", JSON.stringify(cliente, null, 2));
   
   if (!cliente?.correo) {
     console.error("❌ No hay correo del cliente");
@@ -159,23 +158,8 @@ async function enviarCorreos(cliente, cotizacion) {
       htmlTemplate = fs.readFileSync(templatePath, "utf8");
       console.log("✅ Template de correo cargado");
     } else {
-      console.error("❌ No se encuentra correotemplate.html");
-      // Template de emergencia
-      htmlTemplate = `
-        <!DOCTYPE html>
-        <html>
-        <body style="font-family: Arial; padding: 20px;">
-          <h2>🚀 TuMotoExpress.cl</h2>
-          <p>Hola {{nombre}},</p>
-          <p>Tu cotización:</p>
-          <p><strong>Origen:</strong> {{origen}}<br>
-          <strong>Destino:</strong> {{destino}}<br>
-          <strong>Distancia:</strong> {{distancia}} km<br>
-          <strong>Total:</strong> ${{total}}</p>
-          <p>{{mensajeHorario}}</p>
-        </body>
-        </html>
-      `;
+      console.error("❌ No se encuentra correotemplate.html en:", templatePath);
+      return false;
     }
 
     // Formatear números
@@ -203,34 +187,44 @@ async function enviarCorreos(cliente, cotizacion) {
         .replace(/{{\/if}}/g, '')
         .replace(/{{descuento}}/g, formatearNumero(cotizacion.descuentoValor));
     } else {
-      // Eliminar bloque de descuento
       htmlCliente = htmlCliente.replace(/\{\{#if descuento\}\}[\s\S]*?\{\{\/if\}\}/g, '');
     }
 
-    // Enviar al CLIENTE
+    // Configurar el remitente con tu dominio verificado
+    const fromEmail = "contacto@tumotoexpress.cl"; // Usando tu dominio verificado
+    
     console.log("📧 Enviando a CLIENTE:", cliente.correo);
+    console.log("📧 Desde:", fromEmail);
+    
+    // Enviar al CLIENTE
     const resultCliente = await resend.emails.send({
-      from: "onboarding@resend.dev",
+      from: fromEmail,
       to: cliente.correo,
       subject: `🚀 Tu cotización en TuMotoExpress.cl - $${formatearNumero(cotizacion.total)}`,
       html: htmlCliente
     });
-    console.log("✅ Correo enviado a cliente:", resultCliente);
+    console.log("✅ Correo enviado a cliente. ID:", resultCliente.id);
+
+    // Esperar un momento entre envíos
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // Enviar COPIA a nosotros
     console.log("📧 Enviando COPIA a contacto@tumotoexpress.cl");
     const resultCopia = await resend.emails.send({
-      from: "onboarding@resend.dev",
+      from: fromEmail,
       to: ["contacto@tumotoexpress.cl"],
       subject: `📊 COPIA: Cotización para ${cliente.nombre || "cliente"} - $${formatearNumero(cotizacion.total)}`,
       html: htmlCliente
     });
-    console.log("✅ Copia enviada a interno:", resultCopia);
+    console.log("✅ Copia enviada a interno. ID:", resultCopia.id);
 
     return true;
   } catch (err) {
-    console.error("❌ Error enviando correos:", err.message);
-    console.error("❌ Error completo:", err);
+    console.error("❌ Error enviando correos:");
+    console.error("❌ Mensaje:", err.message);
+    if (err.response) {
+      console.error("❌ Respuesta de Resend:", err.response.data);
+    }
     return false;
   }
 }
@@ -249,13 +243,7 @@ app.post("/cotizar", async (req, res) => {
 
     // Calcular distancia
     const distancia_km = await calcularDistancia(inicio, destino);
-    if (!distancia_km) {
-      return res.status(400).json({ 
-        error: "No se pudo calcular la distancia. Usaremos tarifa estimada.",
-        distancia_km: 8.5
-      });
-    }
-
+    
     // Calcular precio
     const resultado = calcularPrecio(distancia_km, cupon || "");
     
@@ -301,15 +289,17 @@ app.post("/cotizar", async (req, res) => {
 // ENDPOINT DE PRUEBA PARA CORREOS
 app.post("/test-email", async (req, res) => {
   try {
+    const { testEmail } = req.body;
+    
     const testCliente = {
-      nombre: "Test",
-      correo: "contacto@tumotoexpress.cl", // Cambia por tu correo para prueba
+      nombre: "Cliente de Prueba",
+      correo: testEmail || "contacto@tumotoexpress.cl",
       telefono: "912345678"
     };
     
     const testCotizacion = {
-      inicio: "Av. Providencia 123",
-      destino: "Av. Las Condes 456",
+      inicio: "Av. Providencia 123, Santiago",
+      destino: "Av. Las Condes 456, Santiago",
       distancia_km: 8.5,
       neto: 8500,
       descuentoValor: 850,
@@ -317,17 +307,44 @@ app.post("/test-email", async (req, res) => {
       total: 9103
     };
 
+    console.log("🧪 Enviando correo de prueba a:", testCliente.correo);
     const result = await enviarCorreos(testCliente, testCotizacion);
-    res.json({ success: result, message: "Correos de prueba enviados" });
+    
+    if (result) {
+      res.json({ 
+        success: true, 
+        message: "Correos de prueba enviados correctamente",
+        detalles: "Revisa la bandeja de entrada y SPAM"
+      });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        error: "Error al enviar correos de prueba" 
+      });
+    }
   } catch (err) {
+    console.error("❌ Error en test-email:", err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// ENDPOINT PARA VERIFICAR CONFIGURACIÓN
+app.get("/check-config", (req, res) => {
+  res.json({
+    resend_key_configured: !!process.env.RESEND_API_KEY,
+    google_maps_configured: !!process.env.GOOGLE_MAPS_BACKEND_KEY,
+    from_email: "contacto@tumotoexpress.cl",
+    port: PORT
+  });
 });
 
 // SERVER
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
+  console.log("=".repeat(50));
   console.log(`✅ Servidor corriendo en puerto ${PORT}`);
-  console.log(`📧 Resend API Key configurada: ${process.env.RESEND_API_KEY ? "SÍ" : "NO"}`);
-  console.log(`📍 Google Maps Key configurada: ${process.env.GOOGLE_MAPS_BACKEND_KEY ? "SÍ" : "NO"}`);
+  console.log(`📧 Resend API Key: ${process.env.RESEND_API_KEY ? "✅ Configurada" : "❌ No configurada"}`);
+  console.log(`📍 Google Maps Key: ${process.env.GOOGLE_MAPS_BACKEND_KEY ? "✅ Configurada" : "❌ No configurada"}`);
+  console.log(`📧 Enviando correos desde: contacto@tumotoexpress.cl`);
+  console.log("=".repeat(50));
 });
