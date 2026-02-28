@@ -1,131 +1,306 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cotización TuMotoExpress.cl</title>
-<style>
-  body {
-    font-family: Arial, sans-serif;
-    margin:0;
-    padding:0;
-    color:#333;
-    background-color:#f9f9f9;
-  }
-  .container {
-    max-width:600px;
-    margin:auto;
-    background:#fff;
-    border:1px solid #ccc;
-    padding:20px;
-    position:relative;
-    overflow:hidden;
-  }
-  .header {
-    text-align:center;
-    background:#004080;
-    color:white;
-    padding:15px;
-    border-radius:5px 5px 0 0;
-  }
-  .header h2 {
-    margin:0;
-  }
-  .cotizacion-info {
-    margin-top:20px;
-    position:relative;
-  }
-  .marca-agua {
-    position:absolute;
-    top:20%;
-    left:0;
-    width:100%;
-    text-align:center;
-    font-size:48px;
-    color:rgba(255,0,0,0.15);
-    transform: rotate(-30deg);
-    pointer-events:none;
-    user-select:none;
-    white-space:nowrap;
-  }
-  table {
-    width:100%;
-    border-collapse:collapse;
-    margin-top:10px;
-  }
-  td {
-    padding:5px 0;
-  }
-  .label {
-    font-weight:bold;
-  }
-  .total {
-    font-size:18px;
-    font-weight:bold;
-    margin-top:10px;
-  }
-  .descuento {
-    color:#d00;
-  }
-  .cliente-info {
-    margin-top:20px;
-    border-top:1px solid #ccc;
-    padding-top:10px;
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tu cotización en TuMotoExpress.cl</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+            border-bottom: 4px solid #ff4500;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 32px;
+            letter-spacing: 1px;
+        }
+        .header .sub {
+            font-size: 16px;
+            opacity: 0.9;
+            margin-top: 10px;
+        }
+        .content {
+            padding: 30px;
+        }
+        .saludo {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+        .saludo strong {
+            color: #000;
+            font-size: 22px;
+        }
+        .card {
+            background: #f9f9f9;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            border: 1px solid #e0e0e0;
+        }
+        .card h2 {
+            margin: 0 0 20px 0;
+            color: #000;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 2px solid #ff4500;
+            padding-bottom: 10px;
+        }
+        .ruta {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 15px 0;
+            border-left: 4px solid #ff4500;
+        }
+        .ruta-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+        }
+        .ruta-icon {
+            font-size: 20px;
+            width: 30px;
+            text-align: center;
+        }
+        .ruta-text {
+            flex: 1;
+            word-break: break-word;
+        }
+        .distancia {
+            background: #f0f0f0;
+            border-radius: 30px;
+            padding: 8px 16px;
+            display: inline-block;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .tabla-precios {
+            width: 100%;
+            margin: 20px 0;
+            border-collapse: collapse;
+        }
+        .tabla-precios tr td {
+            padding: 12px 0;
+            border-bottom: 1px dashed #ddd;
+        }
+        .tabla-precios tr:last-child td {
+            border-bottom: none;
+        }
+        .precio-total {
+            background: #000;
+            color: white;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin: 25px 0;
+        }
+        .precio-total .label {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 5px;
+        }
+        .precio-total .valor {
+            font-size: 42px;
+            font-weight: bold;
+            color: #ff4500;
+        }
+        .horario {
+            background: #e8f4fd;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 25px 0;
+            border-left: 4px solid #2196F3;
+        }
+        .btn-whatsapp {
+            display: block;
+            background: #25D366;
+            color: white;
+            text-decoration: none;
+            padding: 18px 30px;
+            border-radius: 50px;
+            font-weight: bold;
+            font-size: 18px;
+            margin: 25px 0;
+            text-align: center;
+            transition: all 0.3s;
+            border: 2px solid #25D366;
+        }
+        .btn-whatsapp:hover {
+            background: white;
+            color: #25D366;
+        }
+        .footer {
+            background: #f9f9f9;
+            padding: 25px;
+            text-align: center;
+            border-top: 1px solid #e0e0e0;
+            font-size: 14px;
+            color: #666;
+        }
+        .footer .contacto {
+            margin: 15px 0;
+            font-size: 16px;
+        }
+        .footer .contacto a {
+            color: #000;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .nota {
+            font-size: 13px;
+            color: #888;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        .cupon {
+            background: #fff3cd;
+            border: 2px dashed #856404;
+            color: #856404;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 15px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+        /* Sección de descuento condicional */
+        .descuento-row {
+            color: #27ae60;
+        }
+    </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h2>Cotización TuMotoExpress.cl</h2>
-      <p>Número de cotización: <strong>{{numeroCotizacion}}</strong></p>
+    <div class="container">
+        <!-- HEADER -->
+        <div class="header">
+            <h1>🚀 TuMotoExpress.cl</h1>
+            <div class="sub">Tu moto express de confianza en Santiago</div>
+        </div>
+        
+        <!-- CONTENIDO -->
+        <div class="content">
+            <div class="saludo">
+                ¡Hola <strong>{{nombre}}</strong>! 👋
+            </div>
+            
+            <p>Gracias por cotizar con nosotros. Aquí tienes los detalles de tu servicio:</p>
+            
+            <!-- CARD DETALLES DEL VIAJE -->
+            <div class="card">
+                <h2>📍 Detalles del viaje</h2>
+                
+                <div class="ruta">
+                    <div class="ruta-item">
+                        <span class="ruta-icon">🟢</span>
+                        <span class="ruta-text"><strong>Origen:</strong> {{origen}}</span>
+                    </div>
+                    <div class="ruta-item">
+                        <span class="ruta-icon">🔴</span>
+                        <span class="ruta-text"><strong>Destino:</strong> {{destino}}</span>
+                    </div>
+                </div>
+                
+                <div style="text-align: center;">
+                    <span class="distancia">📏 Distancia total: <strong>{{distancia}} km</strong></span>
+                </div>
+            </div>
+            
+            <!-- CARD DETALLE DE PRECIOS -->
+            <div class="card">
+                <h2>💰 Detalle de tu cotización</h2>
+                
+                <table class="tabla-precios">
+                    <tr>
+                        <td>Neto:</td>
+                        <td style="text-align: right;"><strong>${{neto}}</strong></td>
+                    </tr>
+                    <!-- SECCIÓN DE DESCUENTO CONDICIONAL -->
+                    {{#if descuento}}
+                    <tr class="descuento-row">
+                        <td>🎟️ Descuento aplicado:</td>
+                        <td style="text-align: right;"><strong>-${{descuento}}</strong></td>
+                    </tr>
+                    {{/if}}
+                    <tr>
+                        <td>IVA (19%):</td>
+                        <td style="text-align: right;"><strong>${{iva}}</strong></td>
+                    </tr>
+                </table>
+                
+                <!-- TOTAL -->
+                <div class="precio-total">
+                    <div class="label">TOTAL DEL SERVICIO</div>
+                    <div class="valor">${{total}}</div>
+                </div>
+            </div>
+            
+            <!-- HORARIO ESTIMADO -->
+            <div class="horario">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                    <span style="font-size: 24px;">⏰</span>
+                    <strong style="font-size: 18px;">Horario estimado</strong>
+                </div>
+                <p style="margin: 0; font-size: 15px;">
+                    {{mensajeHorario}}
+                </p>
+            </div>
+            
+            <!-- CONTACTO DIRECTO -->
+            <p style="text-align: center; font-size: 16px; margin: 20px 0;">
+                <strong>¿Quieres confirmar tu viaje?</strong>
+            </p>
+            
+            <a href="https://wa.me/56942325524?text=Hola%2C%20confirmo%20el%20servicio%20de%20TuMotoExpress.cl%20-%20{{origen}}%20a%20{{destino}}%20por%20%24{{total}}" 
+               class="btn-whatsapp" target="_blank">
+                📱 Confirmar por WhatsApp
+            </a>
+            
+            <!-- INFORMACIÓN DE CONTACTO -->
+            <div class="footer">
+                <div class="contacto">
+                    <div>📞 <a href="tel:+56942325524">+56 9 4232 5524</a></div>
+                    <div>📧 <a href="mailto:contacto@tumotoexpress.cl">contacto@tumotoexpress.cl</a></div>
+                </div>
+                
+                <div style="margin: 15px 0;">
+                    <span style="background: #000; color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px;">
+                        🏍️ Servicio de moto express
+                    </span>
+                </div>
+                
+                <div class="nota">
+                    * Este servicio está sujeto a disponibilidad de conductores.<br>
+                    * El horario estimado es aproximado y puede variar según el tráfico.<br>
+                    * Incluye traslado de documentos, paquetes pequeños y mensajería.
+                </div>
+                
+                <div style="margin-top: 20px; font-size: 12px; color: #aaa;">
+                    © 2024 TuMotoExpress.cl - Todos los derechos reservados
+                </div>
+            </div>
+        </div>
     </div>
-
-    <div class="cotizacion-info">
-      <div class="marca-agua">TuMotoExpress.cl</div>
-      <p>Estimado {{nombre}}, adjuntamos su cotización:</p>
-
-      <table>
-        <tr>
-          <td class="label">Origen:</td>
-          <td>{{inicio}}</td>
-        </tr>
-        <tr>
-          <td class="label">Destino:</td>
-          <td>{{destino}}</td>
-        </tr>
-        <tr>
-          <td class="label">Distancia:</td>
-          <td>{{distancia_km}} km</td>
-        </tr>
-        <tr>
-          <td class="label">Neto:</td>
-          <td>$ {{neto}}</td>
-        </tr>
-        <!-- Descuento solo si aplica -->
-        {{#descuentoValor}}
-        <tr>
-          <td class="label descuento">{{descuentoTexto}}:</td>
-          <td class="descuento">- $ {{descuentoValor}}</td>
-        </tr>
-        {{/descuentoValor}}
-        <tr>
-          <td class="label">IVA:</td>
-          <td>$ {{iva}}</td>
-        </tr>
-        <tr class="total">
-          <td class="label">Total:</td>
-          <td>$ {{total}}</td>
-        </tr>
-      </table>
-
-      <div class="cliente-info">
-        <p class="label">Datos del cliente:</p>
-        <p>Nombre: {{nombre}}</p>
-        <p>Teléfono: {{telefono}}</p>
-        <p>Correo: {{correo}}</p>
-      </div>
-    </div>
-  </div>
 </body>
 </html>
