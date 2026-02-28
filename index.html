@@ -17,18 +17,36 @@ body {
   overflow-x: hidden;
 }
 
-/* LOGO REPETIDO A LA IZQUIERDA - MODIFICADO */
+/* LOGO IZQUIERDO */
 body::before {
   content: "";
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: url('logo.png') repeat-y left center;
-  background-size: 200px auto;
-  opacity: 0.1;
+  top: 50%;
+  left: 20px;
+  transform: translateY(-50%);
+  width: 180px;
+  height: 180px;
+  background: url('logo.png') no-repeat center;
+  background-size: contain;
+  opacity: 0.15;
   z-index: -1;
+  pointer-events: none;
+}
+
+/* LOGO DERECHO */
+body::after {
+  content: "";
+  position: fixed;
+  top: 50%;
+  right: 20px;
+  transform: translateY(-50%);
+  width: 180px;
+  height: 180px;
+  background: url('logo.png') no-repeat center;
+  background-size: contain;
+  opacity: 0.15;
+  z-index: -1;
+  pointer-events: none;
 }
 
 .container {
@@ -41,7 +59,7 @@ body::before {
   text-align: center;
   position: relative;
   z-index: 1;
-  margin-left: 15px; /* Pequeño margen para no tapar el logo */
+  margin: 0 20px;
 }
 
 h2 { font-size: 28px; margin-bottom: 25px; color: #111; }
@@ -79,8 +97,20 @@ button:active { transform: translateY(0); }
   left: 0;
   width: 100%;
   height: 100%;
-  background: url('logo.png') repeat-y left center;
-  background-size: 120px auto;
+  background: url('logo.png') no-repeat 5% center;
+  background-size: 80px;
+  opacity: 0.1;
+  z-index: 0;
+}
+.resultado::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+  background: url('logo.png') no-repeat 95% center;
+  background-size: 80px;
   opacity: 0.1;
   z-index: 0;
 }
@@ -99,32 +129,51 @@ button:active { transform: translateY(0); }
 }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
+/* RESPONSIVE PARA TABLETS */
+@media screen and (max-width: 900px) {
+  body::before {
+    width: 120px;
+    height: 120px;
+    left: 10px;
+  }
+  
+  body::after {
+    width: 120px;
+    height: 120px;
+    right: 10px;
+  }
+}
+
 /* RESPONSIVE PARA MÓVILES */
 @media screen and (max-width: 600px) {
   body::before {
-    background-size: 150px auto;
-    opacity: 0.08;
+    width: 80px;
+    height: 80px;
+    left: 5px;
+    opacity: 0.1;
+  }
+  
+  body::after {
+    width: 80px;
+    height: 80px;
+    right: 5px;
+    opacity: 0.1;
   }
   
   .container {
-    margin-left: 10px;
+    margin: 0 10px;
     padding: 30px 20px;
   }
 }
 
 @media screen and (max-width: 400px) {
-  body::before {
-    background-size: 100px auto;
-    opacity: 0.06;
+  body::before, body::after {
+    display: none; /* Ocultar en móviles muy pequeños */
   }
   
   .container {
-    margin-left: 5px;
+    margin: 0 5px;
     padding: 25px 15px;
-  }
-  
-  .resultado::before {
-    background-size: 80px auto;
   }
   
   h2 {
