@@ -16,16 +16,15 @@ body {
   position: relative;
   overflow-x: hidden;
 }
-
 /* LOGO IZQUIERDO */
 body::before {
   content: "";
   position: fixed;
   top: 50%;
-  left: 20px;
-  transform: translateY(-50%);
-  width: 180px;
-  height: 180px;
+  left: 50%;
+  transform: translate(-150%, -50%); /* Ajusta este valor para mover más o menos hacia el centro */
+  width: 540px;
+  height: 540px;
   background: url('logo.png') no-repeat center;
   background-size: contain;
   opacity: 1;
@@ -38,17 +37,16 @@ body::after {
   content: "";
   position: fixed;
   top: 50%;
-  right: 20px;
-  transform: translateY(-50%);
-  width: 180px;
-  height: 180px;
+  right: 50%;
+  transform: translate(150%, -50%); /* Ajusta este valor para mover más o menos hacia el centro */
+  width: 540px;
+  height: 540px;
   background: url('logo.png') no-repeat center;
   background-size: contain;
   opacity: 1;
   z-index: -1;
   pointer-events: none;
 }
-
 .container {
   background: white;
   padding: 40px 30px;
