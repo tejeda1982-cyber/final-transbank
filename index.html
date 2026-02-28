@@ -395,16 +395,20 @@ async function cotizar() {
     const resultadoDiv = document.getElementById("resultado");
     resultadoDiv.style.display = "block";
     
-    // Construir HTML base con múltiples destinos
+    // 🔴 CORREGIDO: Usar data.tramos en lugar de data.destinos
     let html = `
-      <strong>📍 Origen:</strong> ${data.inicio}<br>
-      <strong>📍 Destinos:</strong><br>
+      <strong>📍 Origen:</strong> ${data.origen}<br>
+      <strong>📍 Tramos:</strong><br>
     `;
     
-    // Mostrar cada destino con su distancia y tiempo
-    data.destinos.forEach((dest, index) => {
-      html += `&nbsp;&nbsp;${index + 1}. ${dest.direccion}<br>
-               &nbsp;&nbsp;&nbsp;&nbsp;📏 ${dest.distancia_km.toFixed(2)} km | ⏱️ ${dest.tiempo_minutos} min<br>`;
+    // Mostrar cada tramo
+    data.tramos.forEach((tramo, index) => {
+      html += `
+        <div style="background:#f9f9f9; padding:8px; margin:5px 0; border-left:3px solid #ff4500;">
+          <strong>Tramo ${index + 1}:</strong> ${tramo.desde} → ${tramo.direccion}<br>
+          📏 ${tramo.distancia_km.toFixed(2)} km | ⏱️ ${tramo.tiempo_minutos} min | 💰 $${tramo.precio.toLocaleString('es-CL')}
+        </div>
+      `;
     });
     
     html += `<br><strong>📏 Distancia total:</strong> ${data.distancia_total_km.toFixed(2)} km<br>
@@ -435,13 +439,13 @@ async function cotizar() {
     // Botón Solicitar servicio (WhatsApp)
     const telefono = "56942325524";
     
-    // Crear mensaje con múltiples destinos
-    let mensajeDestinos = '';
-    data.destinos.forEach((dest, index) => {
-      mensajeDestinos += `\nDestino ${index + 1}: ${dest.direccion} (${dest.distancia_km.toFixed(2)} km - ${dest.tiempo_minutos} min)`;
+    // Crear mensaje con múltiples tramos
+    let mensajeTramos = '';
+    data.tramos.forEach((tramo, index) => {
+      mensajeTramos += `\nTramo ${index + 1}: ${tramo.desde} → ${tramo.direccion} (${tramo.distancia_km.toFixed(2)} km - $${tramo.precio.toLocaleString('es-CL')})`;
     });
     
-    const mensaje = encodeURIComponent(`Hola, solicito el servicio de TuMotoExpress.cl.\nCódigo de cotización: ${data.codigoCotizacion || 'Pendiente'}\nOrigen: ${data.inicio}${mensajeDestinos}\nDistancia total: ${data.distancia_total_km.toFixed(2)} km\nTiempo total: ${data.tiempo_total_minutos} min\nTotal: $${data.total.toLocaleString('es-CL')}\n${obtenerMensajeHoraEstimado()}`);
+    const mensaje = encodeURIComponent(`Hola, solicito el servicio de TuMotoExpress.cl.\nCódigo de cotización: ${data.codigoCotizacion || 'Pendiente'}\nOrigen: ${data.origen}${mensajeTramos}\nDistancia total: ${data.distancia_total_km.toFixed(2)} km\nTiempo total: ${data.tiempo_total_minutos} min\nTotal: $${data.total.toLocaleString('es-CL')}\n${obtenerMensajeHoraEstimado()}`);
     
     const btnSolicitar = document.getElementById("btnSolicitarServicio");
     btnSolicitar.style.display = "block";
@@ -477,9 +481,6 @@ async function cotizar() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
-            inicio: window.datosViaje.inicio,
-            destinos: window.datosViaje.destinos,
-            cupon: window.datosViaje.cupon,
             nombre, 
             correo, 
             telefono: telefonoC,
