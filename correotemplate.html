@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>Tu cotización en TuMotoExpress.cl</title>
     <style>
-        /* RESET PARA CORREOS */
         body {
             margin: 0;
             padding: 0;
@@ -16,7 +15,6 @@
             -ms-text-size-adjust: 100%;
         }
         
-        /* CONTENEDOR PRINCIPAL */
         .container {
             max-width: 600px;
             margin: 0 auto;
@@ -26,7 +24,6 @@
             box-shadow: 0 5px 20px rgba(0,0,0,0.1);
         }
         
-        /* HEADER SIN LOGO */
         .header {
             background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
             color: white;
@@ -64,12 +61,10 @@
             letter-spacing: 0.5px;
         }
         
-        /* CONTENIDO PRINCIPAL */
         .content {
             padding: 20px 18px;
         }
         
-        /* TEXTO DE SALUDO */
         .saludo {
             font-size: 18px;
             margin-bottom: 12px;
@@ -80,7 +75,6 @@
             font-size: 20px;
         }
         
-        /* TARJETAS */
         .card {
             background: #f9f9f9;
             border-radius: 14px;
@@ -100,7 +94,6 @@
             padding-bottom: 10px;
         }
         
-        /* SECCIÓN DE RUTA - MODIFICADA PARA MÚLTIPLES DESTINOS */
         .ruta {
             background: white;
             border-radius: 10px;
@@ -129,32 +122,33 @@
             font-size: 14px;
         }
         
-        /* NUEVO ESTILO PARA DESTINOS MÚLTIPLES */
-        .destino-item {
+        .tramo-item {
             background: #f9f9f9;
             border-radius: 8px;
-            padding: 10px;
-            margin: 8px 0;
+            padding: 12px;
+            margin: 10px 0;
             border-left: 3px solid #ff4500;
             font-size: 14px;
         }
         
-        .destino-item strong {
+        .tramo-item strong {
             color: #333;
+            font-size: 15px;
         }
         
-        .destino-detalle {
+        .tramo-detalle {
             display: flex;
             gap: 15px;
-            margin-top: 5px;
+            margin-top: 8px;
             color: #666;
             font-size: 13px;
+            flex-wrap: wrap;
         }
         
-        .destino-detalle span {
+        .tramo-detalle span {
             background: #f0f0f0;
-            padding: 3px 8px;
-            border-radius: 12px;
+            padding: 4px 10px;
+            border-radius: 20px;
         }
         
         .distancia {
@@ -167,7 +161,6 @@
             font-size: 14px;
         }
         
-        /* TABLA DE PRECIOS */
         .tabla-precios {
             width: 100%;
             margin: 12px 0;
@@ -189,12 +182,10 @@
             border-bottom: none;
         }
         
-        /* DESCUENTO - solo visible cuando aplica */
         .descuento-row {
             color: #27ae60;
         }
         
-        /* PRECIO TOTAL */
         .precio-total {
             background: #000;
             color: white;
@@ -217,7 +208,6 @@
             line-height: 1.2;
         }
         
-        /* HORARIO */
         .horario {
             background: #e8f4fd;
             border-radius: 14px;
@@ -243,7 +233,6 @@
             font-size: 14px;
         }
         
-        /* BOTÓN WHATSAPP */
         .btn-whatsapp {
             display: block;
             background: #25D366;
@@ -263,7 +252,6 @@
             color: #25D366;
         }
         
-        /* FOOTER */
         .footer {
             background: #f9f9f9;
             padding: 20px 15px;
@@ -312,53 +300,21 @@
             color: #aaa;
         }
         
-        /* MEDIA QUERY MÍNIMO */
         @media screen and (max-width: 400px) {
-            .header h1 {
-                font-size: 28px;
-            }
-            
-            .precio-total .valor {
-                font-size: 34px;
-            }
-            
-            .ruta-item {
-                gap: 8px;
-            }
-            
-            .ruta-icon {
-                width: 22px;
-                font-size: 16px;
-            }
-            
-            .btn-whatsapp {
-                padding: 14px 15px;
-                font-size: 15px;
-            }
-            
-            .header .codigo-container {
-                font-size: 13px;
-                padding: 5px 10px;
-            }
-            
-            .destino-detalle {
-                flex-direction: column;
-                gap: 5px;
-            }
+            .header h1 { font-size: 28px; }
+            .precio-total .valor { font-size: 34px; }
+            .tramo-detalle { flex-direction: column; gap: 5px; }
         }
         
-        .text-center {
-            text-align: center;
-        }
+        .text-center { text-align: center; }
         
-        /* RESUMEN DE TIEMPO TOTAL */
         .resumen-total {
             background: #f0f0f0;
             border-radius: 12px;
-            padding: 12px;
+            padding: 15px;
             margin: 15px 0 10px;
             text-align: center;
-            font-size: 15px;
+            font-size: 16px;
         }
         
         .resumen-total span {
@@ -388,7 +344,7 @@
             
             <p style="margin-bottom: 16px; font-size: 14px;">Gracias por cotizar con nosotros. Aquí tienes los detalles de tu servicio:</p>
             
-            <!-- TARJETA DE VIAJE - MODIFICADA PARA MÚLTIPLES DESTINOS -->
+            <!-- TARJETA DE VIAJE -->
             <div class="card">
                 <h2>📍 Detalles del viaje</h2>
                 
@@ -397,15 +353,15 @@
                         <span class="ruta-icon">🟢</span>
                         <span class="ruta-text"><strong>Origen:</strong> {{origen}}</span>
                     </div>
-                    
-                    <!-- DESTINOS MÚLTIPLES -->
-                    <div style="margin-top: 10px;">
-                        <strong style="display: block; margin-bottom: 8px; color: #333;">📍 Destinos:</strong>
-                        {{destinosHtml}}
-                    </div>
                 </div>
                 
-                <!-- RESUMEN DE DISTANCIA Y TIEMPO TOTAL -->
+                <!-- TRAMOS SECUENCIALES -->
+                <div style="margin-top: 15px;">
+                    <strong style="display: block; margin-bottom: 10px; color: #333;">📋 Recorrido por tramos:</strong>
+                    {{tramosHtml}}
+                </div>
+                
+                <!-- RESUMEN TOTAL -->
                 <div class="resumen-total">
                     <span>📏 Distancia total: {{distancia}} km</span>
                     <span>⏱️ Tiempo total: {{tiempoTotal}} min</span>
@@ -418,11 +374,11 @@
                 
                 <table class="tabla-precios">
                     <tr>
-                        <td>Neto:</td>
+                        <td>Neto (suma de tramos):</td>
                         <td>${{neto}}</td>
                     </tr>
                     
-                    <!-- DESCUENTO CONDICIONAL - SOLO APARECE SI HAY CUPÓN ACTIVO -->
+                    <!-- DESCUENTO CONDICIONAL -->
                     {{#if descuento}}
                     <tr class="descuento-row">
                         <td>🎟️ Descuento aplicado:</td>
@@ -452,13 +408,12 @@
                 <p>{{mensajeHorario}}</p>
             </div>
             
-            <!-- BOTÓN WHATSAPP - MODIFICADO PARA MÚLTIPLES DESTINOS -->
+            <!-- BOTÓN WHATSAPP -->
             <p class="text-center" style="margin: 16px 0 8px; font-size: 14px;">
                 <strong>¿Quieres confirmar tu viaje?</strong>
             </p>
             
-            <a href="{{whatsappLink}}" 
-               class="btn-whatsapp" target="_blank">
+            <a href="{{whatsappLink}}" class="btn-whatsapp" target="_blank">
                 📱 Confirmar por WhatsApp
             </a>
             

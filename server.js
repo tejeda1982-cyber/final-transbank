@@ -47,17 +47,17 @@ function leerTarifas() {
 let { tarifa_base, km_adicional_6_10, km_adicional_10_mas, cupones } = leerTarifas();
 let porcentajeAjuste = 0;
 
-// 🔴 FUNCIÓN MODIFICADA - OBTIENE LA RUTA MÁS CORTA CON TIEMPO
-async function calcularDistanciaYTiempo(inicio, destino) {
+// FUNCIÓN PARA CALCULAR DISTANCIA Y TIEMPO (siempre la ruta más corta)
+async function calcularDistanciaYTiempo(origen, destino) {
   if (!process.env.GOOGLE_MAPS_BACKEND_KEY) {
     console.error("❌ ERROR: GOOGLE_MAPS_BACKEND_KEY no está configurada");
     return { km: 8.5, minutos: 30 };
   }
   
-  const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(inicio)}&destination=${encodeURIComponent(destino)}&region=CL&mode=driving&alternatives=true&key=${process.env.GOOGLE_MAPS_BACKEND_KEY}`;
+  const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origen)}&destination=${encodeURIComponent(destino)}&region=CL&mode=driving&alternatives=true&key=${process.env.GOOGLE_MAPS_BACKEND_KEY}`;
   
   try {
-    console.log("🔍 Calculando ruta entre:", inicio, "y", destino);
+    console.log(`🔍 Calculando ruta de: "${origen}" a "${destino}"`);
     const resp = await fetch(url);
     const data = await resp.json();
     
@@ -84,9 +84,9 @@ async function calcularDistanciaYTiempo(inicio, destino) {
       }
       
       const km = distanciaMinima / 1000;
-      const minutos = Math.round(tiempoMinimo / 60); // Convertir segundos a minutos
+      const minutos = Math.round(tiempoMinimo / 60);
       
-      console.log(`✅ Ruta más corta: ${km.toFixed(2)} km, ${minutos} min (de ${data.routes.length} ruta(s))`);
+      console.log(`✅ Ruta encontrada: ${km.toFixed(2)} km, ${minutos} min`);
       return { km, minutos };
     }
     
@@ -97,55 +97,85 @@ async function calcularDistanciaYTiempo(inicio, destino) {
   }
 }
 
-// 🔴 NUEVA FUNCIÓN - CALCULAR RUTA ÓPTIMA PARA MÚLTIPLES DESTINOS
-async function calcularRutaOptima(origen, destinos) {
+// 🔴 CALCULA TRAMOS SECUENCIALES (inicio → destino1 → destino2 → destino3)
+async function calcularTramosSecuenciales(origen, destinos) {
   if (!process.env.GOOGLE_MAPS_BACKEND_KEY || destinos.length === 0) {
     return [];
   }
   
   try {
-    console.log("🔄 Calculando ruta óptima para múltiples destinos");
+    console.log("🔄 Calculando tramos secuenciales");
+    console.log(`📍 Origen: ${origen}`);
+    console.log(`📍 Destinos: ${destinos.map((d, i) => `Destino ${i+1}: ${d}`).join(" → ")}`);
     
     const resultados = [];
-    let origenActual = origen;
+    let puntoAnterior = origen;
+    let distanciaTotal = 0;
+    let tiempoTotal = 0;
     
-    // Calcular cada tramo desde el origen actual (que siempre es el punto anterior)
+    // Calcular cada tramo desde el punto anterior
     for (let i = 0; i < destinos.length; i++) {
-      console.log(`📍 Calculando tramo ${i + 1}:`, origenActual, "→", destinos[i]);
+      console.log(`📍 Tramo ${i + 1}: ${puntoAnterior} → ${destinos[i]} (Destino ${i+1})`);
       
-      const { km, minutos } = await calcularDistanciaYTiempo(origenActual, destinos[i]);
+      const { km, minutos } = await calcularDistanciaYTiempo(puntoAnterior, destinos[i]);
+      
+      // Calcular precio de ESTE TRAMO usando tu fórmula
+      const precioTramo = calcularPrecioTramo(km);
       
       resultados.push({
+        numero: i + 1,
+        desde: puntoAnterior,
         direccion: destinos[i],
         distancia_km: km,
-        tiempo_minutos: minutos
+        tiempo_minutos: minutos,
+        precio: precioTramo
       });
       
-      // Actualizar origen para el siguiente tramo (NO - siempre desde origen original)
-      // origenActual = destinos[i]; // Esto haría ruta en cadena
-      // Mantenemos origenActual = origen para siempre calcular desde el origen original
+      distanciaTotal += km;
+      tiempoTotal += minutos;
+      
+      // Actualizar puntoAnterior para el siguiente tramo
+      puntoAnterior = destinos[i];
     }
     
-    return resultados;
+    return {
+      tramos: resultados,
+      distancia_total_km: distanciaTotal,
+      tiempo_total_minutos: tiempoTotal
+    };
   } catch (err) {
-    console.error("❌ Error calculando ruta óptima:", err);
-    return destinos.map(destino => ({
-      direccion: destino,
-      distancia_km: 8.5,
-      tiempo_minutos: 30
-    }));
+    console.error("❌ Error calculando tramos secuenciales:", err);
+    return {
+      tramos: destinos.map((destino, index) => ({
+        numero: index + 1,
+        desde: index === 0 ? origen : destinos[index - 1],
+        direccion: destino,
+        distancia_km: 8.5,
+        tiempo_minutos: 30,
+        precio: calcularPrecioTramo(8.5)
+      })),
+      distancia_total_km: 8.5 * destinos.length,
+      tiempo_total_minutos: 30 * destinos.length
+    };
   }
 }
 
-// CALCULAR PRECIO
-function calcularPrecio(distancia_km, codigo_cupon = "") {
-  let neto = 0;
-  if (distancia_km <= 6) neto = tarifa_base;
-  else if (distancia_km <= 10) neto = Math.round(distancia_km * km_adicional_6_10);
-  else neto = Math.round(distancia_km * km_adicional_10_mas);
-  
-  if (porcentajeAjuste > 0) neto = Math.round(neto * (1 + porcentajeAjuste / 100));
+// CALCULA PRECIO DE UN TRAMO INDIVIDUAL
+function calcularPrecioTramo(distancia_km) {
+  if (distancia_km <= 6) {
+    return tarifa_base;
+  } else if (distancia_km <= 10) {
+    return Math.round(distancia_km * km_adicional_6_10);
+  } else {
+    return Math.round(distancia_km * km_adicional_10_mas);
+  }
+}
 
+// CALCULAR PRECIO TOTAL (suma de todos los tramos)
+function calcularPrecioTotal(tramos, codigo_cupon = "") {
+  // Sumar precio de todos los tramos
+  const neto = tramos.reduce((sum, tramo) => sum + tramo.precio, 0);
+  
   let descuentoValor = 0, descuentoTexto = "";
   const cuponUpper = codigo_cupon.toUpperCase();
   
@@ -190,7 +220,7 @@ function obtenerMensajeHoraEstimado() {
   return `Podemos gestionar tu servicio el lunes durante la mañana.`;
 }
 
-// FUNCIÓN PARA GENERAR CÓDIGO ALFANUMÉRICO ALEATORIO
+// FUNCIÓN PARA GENERAR CÓDIGO ALFANUMÉRICO
 function generarCodigoCotizacion() {
   const caracteres = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let codigo = '';
@@ -200,17 +230,15 @@ function generarCodigoCotizacion() {
   return codigo;
 }
 
-// 🔴 FUNCIÓN MODIFICADA - ENVIAR CORREOS CON MÚLTIPLES DESTINOS
+// FUNCIÓN PARA ENVIAR CORREOS
 async function enviarCorreos(cliente, cotizacion) {
   console.log("📧 Iniciando envío de correos...");
-  console.log("📧 Cliente:", JSON.stringify(cliente, null, 2));
   
   if (!cliente?.correo) {
     console.error("❌ No hay correo del cliente");
     return false;
   }
 
-  // Validar email del cliente
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(cliente.correo)) {
     console.error("❌ Email del cliente no válido:", cliente.correo);
@@ -218,7 +246,6 @@ async function enviarCorreos(cliente, cotizacion) {
   }
 
   try {
-    // Leer template
     const templatePath = path.join(__dirname, "correotemplate.html");
     let htmlTemplate = "";
     
@@ -226,50 +253,55 @@ async function enviarCorreos(cliente, cotizacion) {
       htmlTemplate = fs.readFileSync(templatePath, "utf8");
       console.log("✅ Template de correo cargado");
     } else {
-      console.error("❌ No se encuentra correotemplate.html en:", templatePath);
+      console.error("❌ No se encuentra correotemplate.html");
       return false;
     }
 
-    // GENERAR CÓDIGO ALFANUMÉRICO ALEATORIO
     const codigoCotizacion = generarCodigoCotizacion();
     console.log("🔑 Código de cotización generado:", codigoCotizacion);
 
-    // Formatear números
     const formatearNumero = (num) => {
       if (!num && num !== 0) return "0";
       return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     };
 
-    // 🔴 CREAR HTML PARA MÚLTIPLES DESTINOS
-    let destinosHtml = '';
-    if (cotizacion.destinos && cotizacion.destinos.length > 0) {
-      destinosHtml = '<div style="margin: 10px 0;">';
-      cotizacion.destinos.forEach((dest, index) => {
-        destinosHtml += `
-          <div style="background: #f5f5f5; padding: 8px; margin: 5px 0; border-left: 3px solid #ff4500;">
-            <strong>Destino ${index + 1}:</strong> ${dest.direccion}<br>
-            📏 ${dest.distancia_km.toFixed(2)} km | ⏱️ ${dest.tiempo_minutos} min
+    // Generar HTML para los tramos
+    let tramosHtml = '';
+    cotizacion.tramos.forEach((tramo) => {
+      tramosHtml += `
+        <div style="background: #f9f9f9; border-radius: 8px; padding: 12px; margin: 10px 0; border-left: 3px solid #ff4500;">
+          <strong style="font-size: 15px;">Tramo ${tramo.numero}:</strong> ${tramo.desde} <strong>→</strong> ${tramo.direccion}<br>
+          <div style="display: flex; gap: 15px; margin-top: 8px; color: #666; font-size: 13px; flex-wrap: wrap;">
+            <span style="background: #f0f0f0; padding: 4px 10px; border-radius: 20px;">📏 ${tramo.distancia_km.toFixed(2)} km</span>
+            <span style="background: #f0f0f0; padding: 4px 10px; border-radius: 20px;">⏱️ ${tramo.tiempo_minutos} min</span>
+            <span style="background: #f0f0f0; padding: 4px 10px; border-radius: 20px;">💰 $${formatearNumero(tramo.precio)}</span>
           </div>
-        `;
-      });
-      destinosHtml += '</div>';
-    } else {
-      // Fallback a un solo destino
-      destinosHtml = `<strong>Destino:</strong> ${cotizacion.destino || cotizacion.destinos?.[0]?.direccion || 'No especificado'}`;
-    }
+        </div>
+      `;
+    });
 
-    // Procesar template - INCLUYENDO EL CÓDIGO Y MÚLTIPLES DESTINOS
+    // Generar link de WhatsApp
+    let mensajeTramos = '';
+    cotizacion.tramos.forEach((tramo, index) => {
+      mensajeTramos += `\nTramo ${index + 1}: ${tramo.desde} → ${tramo.direccion} (${tramo.distancia_km.toFixed(2)} km - $${formatearNumero(tramo.precio)})`;
+    });
+    
+    const mensajeWhatsApp = `Hola, confirmo el servicio de TuMotoExpress.cl\nCódigo: ${codigoCotizacion}\nOrigen: ${cotizacion.origen}${mensajeTramos}\n\nTotal: $${formatearNumero(cotizacion.total)}`;
+    const whatsappLink = `https://wa.me/56942325524?text=${encodeURIComponent(mensajeWhatsApp)}`;
+
+    // Procesar template
     let htmlCliente = htmlTemplate
+      .replace(/{{codigoCotizacion}}/g, codigoCotizacion)
       .replace(/{{nombre}}/g, cliente.nombre || "Cliente")
-      .replace(/{{origen}}/g, cotizacion.inicio || "")
-      .replace(/{{destino}}/g, destinosHtml) // Reemplazamos destino con el HTML de múltiples destinos
-      .replace(/{{distancia}}/g, cotizacion.distancia_total_km ? cotizacion.distancia_total_km.toFixed(2) : "0")
+      .replace(/{{origen}}/g, cotizacion.origen)
+      .replace(/{{tramosHtml}}/g, tramosHtml)
+      .replace(/{{distancia}}/g, cotizacion.distancia_total_km.toFixed(2))
+      .replace(/{{tiempoTotal}}/g, cotizacion.tiempo_total_minutos)
       .replace(/{{neto}}/g, formatearNumero(cotizacion.neto))
       .replace(/{{iva}}/g, formatearNumero(cotizacion.iva))
       .replace(/{{total}}/g, formatearNumero(cotizacion.total))
-      .replace(/{{telefono}}/g, cliente.telefono || "")
       .replace(/{{mensajeHorario}}/g, obtenerMensajeHoraEstimado())
-      .replace(/{{codigoCotizacion}}/g, codigoCotizacion);
+      .replace(/{{whatsappLink}}/g, whatsappLink);
 
     // Procesar descuento condicional
     if (cotizacion.descuentoValor && cotizacion.descuentoValor > 0) {
@@ -281,46 +313,33 @@ async function enviarCorreos(cliente, cotizacion) {
       htmlCliente = htmlCliente.replace(/\{\{#if descuento\}\}[\s\S]*?\{\{\/if\}\}/g, '');
     }
 
-    // Configurar el remitente con tu dominio verificado
     const fromEmail = "contacto@tumotoexpress.cl";
     
-    console.log("📧 Enviando a CLIENTE:", cliente.correo);
-    console.log("📧 Desde:", fromEmail);
-    
-    // Enviar al CLIENTE - CON CÓDIGO EN ASUNTO
-    const resultCliente = await resend.emails.send({
+    // Enviar al cliente
+    await resend.emails.send({
       from: fromEmail,
       to: cliente.correo,
       subject: `🚀 Cotización #${codigoCotizacion} - TuMotoExpress.cl - $${formatearNumero(cotizacion.total)}`,
       html: htmlCliente
     });
-    console.log("✅ Correo enviado a cliente. ID:", resultCliente.id);
 
-    // Esperar un momento entre envíos
+    // Enviar copia
     await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Enviar COPIA a nosotros - CON CÓDIGO EN ASUNTO
-    console.log("📧 Enviando COPIA a contacto@tumotoexpress.cl");
-    const resultCopia = await resend.emails.send({
+    await resend.emails.send({
       from: fromEmail,
       to: ["contacto@tumotoexpress.cl"],
-      subject: `📊 COPIA #${codigoCotizacion}: Cotización para ${cliente.nombre || "cliente"} - $${formatearNumero(cotizacion.total)}`,
+      subject: `📊 COPIA #${codigoCotizacion}: ${cliente.nombre || "cliente"} - $${formatearNumero(cotizacion.total)}`,
       html: htmlCliente
     });
-    console.log("✅ Copia enviada a interno. ID:", resultCopia.id);
 
     return true;
   } catch (err) {
-    console.error("❌ Error enviando correos:");
-    console.error("❌ Mensaje:", err.message);
-    if (err.response) {
-      console.error("❌ Respuesta de Resend:", err.response.data);
-    }
+    console.error("❌ Error enviando correos:", err.message);
     return false;
   }
 }
 
-// 🔴 ENDPOINT COTIZAR MODIFICADO - MANEJA MÚLTIPLES DESTINOS
+// ENDPOINT COTIZAR - MODIFICADO PARA TRAMOS SECUENCIALES
 app.post("/cotizar", async (req, res) => {
   console.log("📩 POST /cotizar recibido");
   console.log("📩 Body:", req.body);
@@ -336,49 +355,41 @@ app.post("/cotizar", async (req, res) => {
       return res.status(400).json({ error: "Se requiere al menos un destino" });
     }
 
-    // 🔴 Calcular ruta óptima para todos los destinos
-    const destinosCalculados = await calcularRutaOptima(inicio, destinos);
+    console.log(`📍 Procesando: ${inicio} → ${destinos.map((d,i)=> `Destino ${i+1}: ${d}`).join(" → ")}`);
+
+    // CALCULAR TRAMOS SECUENCIALES
+    const { tramos, distancia_total_km, tiempo_total_minutos } = await calcularTramosSecuenciales(inicio, destinos);
     
-    // 🔴 Calcular distancia total (suma de todos los tramos desde origen)
-    const distancia_total_km = destinosCalculados.reduce((sum, d) => sum + d.distancia_km, 0);
-    const tiempo_total_minutos = destinosCalculados.reduce((sum, d) => sum + d.tiempo_minutos, 0);
-    
-    // Calcular precio basado en distancia total
-    const resultado = calcularPrecio(distancia_total_km, cupon || "");
+    // CALCULAR PRECIO TOTAL (suma de todos los tramos)
+    const precios = calcularPrecioTotal(tramos, cupon || "");
     
     // Preparar respuesta
     const respuesta = {
-      inicio,
-      destinos: destinosCalculados,
+      origen: inicio,
+      tramos: tramos,
       distancia_total_km,
       tiempo_total_minutos,
-      ...resultado
+      ...precios
     };
 
-    console.log("✅ Cotización calculada:", respuesta);
-    console.log(`✅ Distancia total: ${distancia_total_km.toFixed(2)} km, Tiempo total: ${tiempo_total_minutos} min`);
-    
-    // Enviar respuesta inmediatamente
+    console.log("✅ Cotización calculada:");
+    console.log(`📍 Origen: ${inicio}`);
+    tramos.forEach(t => {
+      console.log(`   Tramo ${t.numero} (Destino ${t.numero}): ${t.desde} → ${t.direccion} = $${t.precio} (${t.distancia_km.toFixed(2)} km)`);
+    });
+    console.log(`💰 Total: $${precios.total}`);
+
     res.json(respuesta);
 
-    // Si hay datos de cliente, enviar correos (en segundo plano)
+    // Enviar correos si hay datos de cliente
     if (nombre && correo) {
       console.log("📧 Datos de cliente completos, enviando correos...");
-      
-      // Enviar sin await para no bloquear la respuesta
       enviarCorreos({ nombre, correo, telefono }, respuesta)
         .then(success => {
-          if (success) {
-            console.log("✅ Correos enviados exitosamente");
-          } else {
-            console.log("❌ Fallo al enviar correos");
-          }
+          if (success) console.log("✅ Correos enviados");
+          else console.log("❌ Fallo al enviar correos");
         })
-        .catch(err => {
-          console.error("❌ Error en envío de correos:", err);
-        });
-    } else {
-      console.log("📧 No hay datos completos de cliente, no se envían correos");
+        .catch(err => console.error("❌ Error:", err));
     }
 
   } catch (error) {
@@ -387,18 +398,14 @@ app.post("/cotizar", async (req, res) => {
   }
 });
 
-// 🔴 NUEVO ENDPOINT PARA ENVIAR CORREO CON DATOS COMPLETOS
+// ENDPOINT PARA ENVIAR CORREO
 app.post("/enviar-correo", async (req, res) => {
-  console.log("📩 POST /enviar-correo recibido");
-  
   try {
-    const { inicio, destinos, cupon, nombre, correo, telefono, cotizacion } = req.body;
+    const { nombre, correo, telefono, cotizacion } = req.body;
     
     if (!nombre || !correo || !telefono) {
       return res.status(400).json({ error: "Faltan datos del cliente" });
     }
-    
-    console.log("📧 Enviando correo con cotización existente");
     
     const result = await enviarCorreos({ nombre, correo, telefono }, cotizacion);
     
@@ -408,66 +415,9 @@ app.post("/enviar-correo", async (req, res) => {
       res.status(500).json({ error: "Error al enviar el correo" });
     }
   } catch (err) {
-    console.error("❌ Error en /enviar-correo:", err);
+    console.error("❌ Error:", err);
     res.status(500).json({ error: err.message });
   }
-});
-
-// ENDPOINT DE PRUEBA PARA CORREOS
-app.post("/test-email", async (req, res) => {
-  try {
-    const { testEmail } = req.body;
-    
-    const testCliente = {
-      nombre: "Cliente de Prueba",
-      correo: testEmail || "contacto@tumotoexpress.cl",
-      telefono: "912345678"
-    };
-    
-    const testCotizacion = {
-      inicio: "Av. Providencia 123, Santiago",
-      destinos: [
-        { direccion: "Av. Las Condes 456, Santiago", distancia_km: 8.5, tiempo_minutos: 18 },
-        { direccion: "Av. Irarrázaval 789, Ñuñoa", distancia_km: 5.2, tiempo_minutos: 12 },
-        { direccion: "Av. Vicuña Mackenna 123, Santiago", distancia_km: 6.8, tiempo_minutos: 15 }
-      ],
-      distancia_total_km: 20.5,
-      tiempo_total_minutos: 45,
-      neto: 17425,
-      descuentoValor: 1742,
-      iva: 2980,
-      total: 18663
-    };
-
-    console.log("🧪 Enviando correo de prueba a:", testCliente.correo);
-    const result = await enviarCorreos(testCliente, testCotizacion);
-    
-    if (result) {
-      res.json({ 
-        success: true, 
-        message: "Correos de prueba enviados correctamente",
-        detalles: "Revisa la bandeja de entrada y SPAM"
-      });
-    } else {
-      res.status(500).json({ 
-        success: false, 
-        error: "Error al enviar correos de prueba" 
-      });
-    }
-  } catch (err) {
-    console.error("❌ Error en test-email:", err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ENDPOINT PARA VERIFICAR CONFIGURACIÓN
-app.get("/check-config", (req, res) => {
-  res.json({
-    resend_key_configured: !!process.env.RESEND_API_KEY,
-    google_maps_configured: !!process.env.GOOGLE_MAPS_BACKEND_KEY,
-    from_email: "contacto@tumotoexpress.cl",
-    port: PORT
-  });
 });
 
 // SERVER
@@ -475,8 +425,7 @@ const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
   console.log("=".repeat(50));
   console.log(`✅ Servidor corriendo en puerto ${PORT}`);
-  console.log(`📧 Resend API Key: ${process.env.RESEND_API_KEY ? "✅ Configurada" : "❌ No configurada"}`);
-  console.log(`📍 Google Maps Key: ${process.env.GOOGLE_MAPS_BACKEND_KEY ? "✅ Configurada" : "❌ No configurada"}`);
-  console.log(`📧 Enviando correos desde: contacto@tumotoexpress.cl`);
+  console.log(`📍 Google Maps Key: ${process.env.GOOGLE_MAPS_BACKEND_KEY ? "✅" : "❌"}`);
+  console.log(`📧 Resend API Key: ${process.env.RESEND_API_KEY ? "✅" : "❌"}`);
   console.log("=".repeat(50));
 });
