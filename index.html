@@ -16,7 +16,8 @@ body {
   position: relative;
   overflow-x: hidden;
 }
-/* LOGO IZQUIERDO */
+
+/* LOGOS LATERALES (se mantienen) */
 body::before {
   content: "";
   position: fixed;
@@ -32,7 +33,6 @@ body::before {
   pointer-events: none;
 }
 
-/* LOGO DERECHO */
 body::after {
   content: "";
   position: fixed;
@@ -47,6 +47,7 @@ body::after {
   z-index: -1;
   pointer-events: none;
 }
+
 .container {
   background: white;
   padding: 40px 30px;
@@ -88,20 +89,56 @@ button:active { transform: translateY(0); }
   overflow: hidden;
 }
 
-.resultado::after {
+/* SECCIÓN DE PRECIOS CON LOGO A LA DERECHA */
+.precios-section {
+  position: relative;
+  padding: 15px;
+  background: #ffffff;
+  border-radius: 12px;
+  margin: 15px 0;
+  border: 1px solid #e0e0e0;
+  overflow: hidden;
+}
+
+.precios-section::after {
   content: "";
   position: absolute;
-  top: 0;
-  right: 0;
-  width: 100%;
-  height: 100%;
-  background: url('logo.png') no-repeat 95% center;
-  background-size: 160px;
-  opacity: 1;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  width: 80px;
+  height: 80px;
+  background: url('logo.png') no-repeat center;
+  background-size: contain;
+  opacity: 0.15;
+  pointer-events: none;
   z-index: 0;
 }
 
-.resultado * { position: relative; z-index: 1; }
+.precios-content {
+  position: relative;
+  z-index: 1;
+}
+
+.precio-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px dashed #ddd;
+}
+
+.precio-item:last-child {
+  border-bottom: none;
+}
+
+.precio-total {
+  font-size: 20px;
+  font-weight: bold;
+  color: #ff4500;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 2px solid #ff4500;
+}
 
 .spinner {
   border: 5px solid #f3f3f3;
@@ -210,6 +247,11 @@ button:active { transform: translateY(0); }
   .container { padding: 30px 20px; }
   .destino-adicional { flex-direction: column; }
   .btn-eliminar { width: 100%; }
+  .precios-section::after {
+    width: 60px;
+    height: 60px;
+    opacity: 0.1;
+  }
 }
 </style>
 </head>
@@ -242,7 +284,7 @@ button:active { transform: translateY(0); }
   <div id="camposCliente" style="display:none;">
     <input type="text" id="nombreCliente" placeholder="Nombre completo">
     <input type="email" id="correoCliente" placeholder="Correo electrónico">
-    <input type="tel" id="telefonoCliente" placeholder="Teléfono (ej: 912345678">
+    <input type="tel" id="telefonoCliente" placeholder="Teléfono (ej: 912345678)">
     
     <!-- BOTÓN SOLICITAR SERVICIO -->
     <button id="btnSolicitarServicio" class="btn-whatsapp">📱 Solicitar servicio</button>
@@ -419,21 +461,40 @@ async function cotizar() {
       </div>
     `;
     
-    // Detalle de precios
+    // SECCIÓN DE PRECIOS CON LOGO A LA DERECHA
     html += `
-      <strong>💰 Detalle de precios:</strong><br>
-      <div style="margin-left:10px;">
-        <div>Neto: $${data.neto.toLocaleString('es-CL')}</div>
+      <div class="precios-section">
+        <div class="precios-content">
+          <strong>💰 Detalle de precios:</strong>
+          <div class="precio-item">
+            <span>Neto:</span>
+            <span>$${data.neto.toLocaleString('es-CL')}</span>
+          </div>
     `;
     
     if (data.descuentoValor && data.descuentoValor > 0) {
-      html += `<div style="color:#27ae60;">🎟️ Descuento: -$${data.descuentoValor.toLocaleString('es-CL')}</div>`;
-      html += `<div>Neto con descuento: $${data.netoConDescuento.toLocaleString('es-CL')}</div>`;
+      html += `
+          <div class="precio-item" style="color:#27ae60;">
+            <span>🎟️ Descuento:</span>
+            <span>-$${data.descuentoValor.toLocaleString('es-CL')}</span>
+          </div>
+          <div class="precio-item">
+            <span>Neto con descuento:</span>
+            <span>$${data.netoConDescuento.toLocaleString('es-CL')}</span>
+          </div>
+      `;
     }
     
     html += `
-        <div>IVA (19%): $${data.iva.toLocaleString('es-CL')}</div>
-        <div style="font-size:20px; font-weight:bold; color:#ff4500; margin-top:8px;">Total: $${data.total.toLocaleString('es-CL')}</div>
+          <div class="precio-item">
+            <span>IVA (19%):</span>
+            <span>$${data.iva.toLocaleString('es-CL')}</span>
+          </div>
+          <div class="precio-total">
+            <span>TOTAL:</span>
+            <span>$${data.total.toLocaleString('es-CL')}</span>
+          </div>
+        </div>
       </div>
       <br>
       <em>${obtenerMensajeHoraEstimado()}</em>
