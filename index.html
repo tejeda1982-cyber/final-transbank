@@ -17,7 +17,7 @@ body {
   overflow-x: hidden;
 }
 
-/* LOGOS LATERALES */
+/* LOGOS LATERALES (opacidad 1) */
 body::before {
   content: "";
   position: fixed;
@@ -89,7 +89,7 @@ button:active { transform: translateY(0); }
   overflow: hidden;
 }
 
-/* SECCIÓN DE PRECIOS CON LOGO AL MEDIO */
+/* SECCIÓN DE PRECIOS CON LOGO AL MEDIO - MISMA INTENSIDAD QUE LATERALES */
 .precios-section {
   position: relative;
   padding: 20px;
@@ -113,7 +113,7 @@ button:active { transform: translateY(0); }
   height: 150px;
   background: url('logo.png') no-repeat center;
   background-size: contain;
-  opacity: 1;
+  opacity: 1;  /* Cambiado de 0.1 a 1 - MISMA INTENSIDAD QUE LATERALES */
   pointer-events: none;
   z-index: 0;
 }
@@ -259,6 +259,7 @@ button:active { transform: translateY(0); }
   .precios-section::before {
     width: 100px;
     height: 100px;
+    opacity: 1;  /* También mantiene la misma intensidad en móvil */
   }
 }
 </style>
@@ -307,7 +308,7 @@ button:active { transform: translateY(0); }
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD7ExvZ0pJBjs37LHwbOcWrUqpxg_V78mk&libraries=places&language=es" defer></script>
 
 <script>
-let contadorDestinos = 1;  // Empezamos en 1 porque ya tenemos Destino 1
+let contadorDestinos = 1;
 
 function initAutocomplete() {
   const options = { 
@@ -316,24 +317,21 @@ function initAutocomplete() {
     fields: ["formatted_address", "geometry", "name"] 
   };
   
-  // Autocomplete para origen
   new google.maps.places.Autocomplete(document.getElementById("inicio"), options);
   
-  // Autocomplete para todos los destinos existentes
   document.querySelectorAll('.destino-input').forEach(input => {
     new google.maps.places.Autocomplete(input, options);
   });
 }
 
 function agregarDestino() {
-  contadorDestinos++;  // Incrementa el contador
+  contadorDestinos++;
   
   const container = document.getElementById('destinosContainer');
   const nuevoDestino = document.createElement('div');
   nuevoDestino.className = 'destino-adicional';
   nuevoDestino.id = `destino-${contadorDestinos}`;
   
-  // El placeholder muestra el número correcto de destino
   nuevoDestino.innerHTML = `
     <input type="text" class="destino-input" placeholder="Dirección de destino ${contadorDestinos}">
     <button class="btn-eliminar" onclick="eliminarDestino(${contadorDestinos})">✖</button>
@@ -341,7 +339,6 @@ function agregarDestino() {
   
   container.appendChild(nuevoDestino);
   
-  // Inicializar autocomplete para el nuevo input
   const options = { 
     types: ["geocode", "establishment"], 
     componentRestrictions: { country: "cl" }, 
@@ -354,15 +351,12 @@ function eliminarDestino(id) {
   const elemento = document.getElementById(`destino-${id}`);
   if (elemento && document.querySelectorAll('.destino-adicional').length > 1) {
     elemento.remove();
-    
-    // 🔴 REENUMERAR los placeholders después de eliminar
     reenumerarDestinos();
   } else {
     alert('Debe haber al menos un destino');
   }
 }
 
-// 🔴 NUEVA FUNCIÓN: Reenumera los placeholders después de eliminar
 function reenumerarDestinos() {
   const destinos = document.querySelectorAll('.destino-adicional');
   destinos.forEach((destino, index) => {
@@ -371,12 +365,10 @@ function reenumerarDestinos() {
     input.placeholder = `Dirección de destino ${nuevoNumero}`;
     destino.id = `destino-${nuevoNumero}`;
     
-    // Actualizar el botón eliminar con el nuevo ID
     const btnEliminar = destino.querySelector('.btn-eliminar');
     btnEliminar.setAttribute('onclick', `eliminarDestino(${nuevoNumero})`);
   });
   
-  // Actualizar el contador global
   contadorDestinos = destinos.length;
 }
 
@@ -454,16 +446,13 @@ async function cotizar() {
     const resultadoDiv = document.getElementById("resultado");
     resultadoDiv.style.display = "block";
     
-    // Mostrar código de cotización si existe
     let html = '';
     if (data.codigoCotizacion) {
       html += `<div class="codigo-cotizacion">🔑 Código: ${data.codigoCotizacion}</div>`;
     }
     
-    // Mostrar origen
     html += `<strong>📍 Origen:</strong> ${data.origen}<br><br>`;
     
-    // Mostrar TODOS los destinos ingresados con numeración correcta
     html += `<strong>📋 Destinos ingresados (${destinos.length}):</strong><br>`;
     html += `<ol class="destinos-lista" style="margin:5px 0 15px 20px;">`;
     destinos.forEach((destino, index) => {
@@ -471,7 +460,6 @@ async function cotizar() {
     });
     html += `</ol>`;
     
-    // Mostrar cada tramo calculado
     html += `<strong>🛵 Tramos del recorrido:</strong><br>`;
     
     data.tramos.forEach((tramo, index) => {
@@ -487,7 +475,6 @@ async function cotizar() {
       `;
     });
     
-    // Resumen total
     html += `
       <div class="resumen-total">
         <div>📏 Distancia total: ${data.distancia_total_km.toFixed(2)} km</div>
@@ -495,7 +482,6 @@ async function cotizar() {
       </div>
     `;
     
-    // SECCIÓN DE PRECIOS CON LOGO AL MEDIO
     html += `
       <div class="precios-section">
         <div class="precios-content">
@@ -536,14 +522,11 @@ async function cotizar() {
     
     resultadoDiv.innerHTML = html;
 
-    // Mostrar campos de cliente
     document.getElementById("camposCliente").style.display = "block";
 
-    // Guardar datos
     window.ultimaCotizacion = data;
     window.datosViaje = { inicio, destinos, cupon: codigo_cupon };
 
-    // Botón WhatsApp
     const telefono = "56942325524";
     let mensajeTramos = '';
     data.tramos.forEach((tramo, index) => {
@@ -556,7 +539,6 @@ async function cotizar() {
     btnSolicitar.style.display = "block";
     btnSolicitar.onclick = () => window.open(`https://wa.me/${telefono}?text=${mensaje}`, "_blank");
 
-    // Botón Correo
     const btnCorreo = document.getElementById("btnEnviarCorreo");
     btnCorreo.style.display = "block";
     btnCorreo.onclick = async () => {
@@ -605,7 +587,6 @@ async function cotizar() {
       }
     };
 
-    // Botón Pagar
     const btnPagar = document.getElementById("btnPagar");
     btnPagar.style.display = "block";
     btnPagar.onclick = () => alert("⏳ Integración WebPay próximamente");
