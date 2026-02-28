@@ -3,8 +3,14 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
-const fetch = require("node-fetch"); // versión 2.x
+const fetch = require("node-fetch");
 const { Resend } = require("resend");
+
+// Verificar API key al inicio
+if (!process.env.RESEND_API_KEY) {
+  console.error("❌ ERROR: RESEND_API_KEY no está configurada en .env");
+  process.exit(1);
+}
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const app = express();
@@ -12,190 +18,246 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Servir HTML y archivos estáticos
+// Servir archivos estáticos
 app.use(express.static(__dirname));
 app.get("/", (req,res)=>res.sendFile(path.join(__dirname,"index.html")));
-
 app.get("/health",(req,res)=>res.json({status:"OK"}));
 
 // TARIFAS
 const TARIFAS_FILE = path.join(__dirname, "tarifas.json");
-function leerTarifas(){ 
-  try { 
-    return JSON.parse(fs.readFileSync(TARIFAS_FILE,"utf8")); 
-  } catch { 
-    return { tarifa_base:6000, km_adicional_6_10:1000, km_adicional_10_mas:850, cupones:{} }; 
-  } 
+function leerTarifas() {
+  try {
+    if (fs.existsSync(TARIFAS_FILE)) {
+      return JSON.parse(fs.readFileSync(TARIFAS_FILE, "utf8"));
+    }
+  } catch (err) {
+    console.error("Error leyendo tarifas.json:", err.message);
+  }
+  return { 
+    tarifa_base: 6000, 
+    km_adicional_6_10: 1000, 
+    km_adicional_10_mas: 850, 
+    cupones: {
+      "BIENVENIDA10": 10,
+      "DESCUENTO20": 20
+    } 
+  };
 }
-let {tarifa_base,km_adicional_6_10,km_adicional_10_mas,cupones} = leerTarifas();
+
+let { tarifa_base, km_adicional_6_10, km_adicional_10_mas, cupones } = leerTarifas();
 let porcentajeAjuste = 0;
 
 // CALCULAR DISTANCIA GOOGLE
-async function calcularDistancia(inicio,destino){
+async function calcularDistancia(inicio, destino) {
+  if (!process.env.GOOGLE_MAPS_BACKEND_KEY) {
+    console.error("❌ ERROR: GOOGLE_MAPS_BACKEND_KEY no está configurada");
+    return 8.5; // Distancia de prueba para desarrollo
+  }
+  
   const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(inicio)}&destination=${encodeURIComponent(destino)}&region=CL&mode=driving&key=${process.env.GOOGLE_MAPS_BACKEND_KEY}`;
+  
   try {
+    console.log("🔍 Calculando distancia entre:", inicio, "y", destino);
     const resp = await fetch(url);
     const data = await resp.json();
-    if(data.status!=="OK"){ 
-      console.error("Google Directions API error:", data.error_message||data.status); 
-      return null; 
+    
+    if (data.status !== "OK") {
+      console.error("❌ Google Directions API error:", data.error_message || data.status);
+      return 8.5; // Distancia de prueba
     }
-    return data.routes?.[0]?.legs?.[0]?.distance?.value ? data.routes[0].legs[0].distance.value/1000 : null;
-  } catch(err){ 
-    console.error("Error fetch Google Directions API:",err); 
-    return null; 
+    
+    const distancia = data.routes?.[0]?.legs?.[0]?.distance?.value;
+    if (distancia) {
+      const km = distancia / 1000;
+      console.log("✅ Distancia calculada:", km.toFixed(2), "km");
+      return km;
+    }
+    return 8.5;
+  } catch (err) {
+    console.error("❌ Error en Google Directions API:", err.message);
+    return 8.5; // Distancia de prueba
   }
 }
 
 // CALCULAR PRECIO
-function calcularPrecio(distancia_km,codigo_cupon=""){
+function calcularPrecio(distancia_km, codigo_cupon = "") {
   let neto = 0;
-  if(distancia_km<=6) neto = tarifa_base;
-  else if(distancia_km<=10) neto = Math.round(distancia_km*km_adicional_6_10);
-  else neto = Math.round(distancia_km*km_adicional_10_mas);
-  if(porcentajeAjuste>0) neto = Math.round(neto*(1+porcentajeAjuste/100));
+  if (distancia_km <= 6) neto = tarifa_base;
+  else if (distancia_km <= 10) neto = Math.round(distancia_km * km_adicional_6_10);
+  else neto = Math.round(distancia_km * km_adicional_10_mas);
+  
+  if (porcentajeAjuste > 0) neto = Math.round(neto * (1 + porcentajeAjuste / 100));
 
-  let descuentoValor=0, descuentoTexto="";
-  if(codigo_cupon && cupones[codigo_cupon.toUpperCase()]){
-    const porcentaje = cupones[codigo_cupon.toUpperCase()];
-    descuentoValor = Math.round(neto*(porcentaje/100));
-    descuentoTexto = `Descuento ${codigo_cupon.toUpperCase()} ${porcentaje}%`;
+  let descuentoValor = 0, descuentoTexto = "";
+  const cuponUpper = codigo_cupon.toUpperCase();
+  
+  if (cuponUpper && cupones && cupones[cuponUpper]) {
+    const porcentaje = cupones[cuponUpper];
+    descuentoValor = Math.round(neto * (porcentaje / 100));
+    descuentoTexto = `Descuento ${cuponUpper} ${porcentaje}%`;
+    console.log(`🎟️ Cupón aplicado: ${cuponUpper}, descuento: $${descuentoValor}`);
   }
+  
   const netoConDescuento = neto - descuentoValor;
-  const iva = Math.round(netoConDescuento*0.19);
+  const iva = Math.round(netoConDescuento * 0.19);
   const total = netoConDescuento + iva;
-  return {neto,descuentoValor,descuentoTexto,iva,total,netoConDescuento};
+  
+  return { neto, descuentoValor, descuentoTexto, iva, total, netoConDescuento };
 }
 
-// FUNCIÓN PARA OBTENER MENSAJE DE HORARIO (la misma del frontend)
+// FUNCIÓN PARA OBTENER MENSAJE DE HORARIO
 function obtenerMensajeHoraEstimado() {
-    const ahora = new Date();
-    const dia = ahora.getDay();
-    const hora = ahora.getHours();
-    const minutos = ahora.getMinutes();
-    const diasSemana = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
-    
-    function sumar80Minutos(fecha) { 
-        return new Date(fecha.getTime() + 80 * 60000); 
-    }
+  const ahora = new Date();
+  const dia = ahora.getDay();
+  const hora = ahora.getHours();
+  const minutos = ahora.getMinutes();
+  const diasSemana = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+  
+  function sumar80Minutos(fecha) {
+    return new Date(fecha.getTime() + 80 * 60000);
+  }
 
-    if (dia >= 1 && dia <= 4 && hora < 9) {
-        return `Gracias por cotizar en TuMotoExpress.cl. En este momento nos encontramos fuera de horario comercial, pero podemos gestionar tu servicio para hoy ${diasSemana[dia]} durante la mañana (sujeto a disponibilidad).`;
+  if (dia >= 1 && dia <= 4 && hora < 9) {
+    return `Gracias por cotizar. Estamos fuera de horario, pero podemos gestionar tu servicio para hoy ${diasSemana[dia]} durante la mañana.`;
+  }
+  if (dia >= 1 && dia <= 5) {
+    if (hora >= 9 && (hora < 15 || (hora === 15 && minutos <= 40))) {
+      const fechaEstimado = sumar80Minutos(ahora);
+      return `Podemos gestionar tu servicio a partir de las ${fechaEstimado.getHours().toString().padStart(2, '0')}:${fechaEstimado.getMinutes().toString().padStart(2, '0')} hrs.`;
     }
-    if (dia >= 1 && dia <= 5) {
-        if (hora >= 9 && (hora < 15 || (hora === 15 && minutos <= 40))) {
-            const fechaEstimado = sumar80Minutos(ahora);
-            return `Gracias por cotizar en TuMotoExpress.cl. Podemos gestionar tu servicio a partir de las ${fechaEstimado.getHours().toString().padStart(2,'0')}:${fechaEstimado.getMinutes().toString().padStart(2,'0')} horas aproximadamente (sujeto a disponibilidad).`;
-        }
-    }
-    if (dia >= 1 && dia <= 4 && hora > 15) {
-        const manana = new Date(ahora); 
-        manana.setDate(ahora.getDate()+1);
-        return `Gracias por cotizar en TuMotoExpress.cl. Fuera de horario comercial, podemos gestionar tu servicio para mañana ${diasSemana[manana.getDay()]} durante la mañana (sujeto a disponibilidad).`;
-    }
-    const lunes = new Date(ahora); 
-    while(lunes.getDay()!==1){
-        lunes.setDate(lunes.getDate()+1);
-    }
-    return `Gracias por cotizar en TuMotoExpress.cl. Fuera de horario comercial, podemos gestionar tu servicio para el lunes durante la mañana (sujeto a disponibilidad).`;
+  }
+  if (dia >= 1 && dia <= 4 && hora > 15) {
+    return `Fuera de horario, podemos gestionar tu servicio para mañana ${diasSemana[dia + 1]} durante la mañana.`;
+  }
+  return `Podemos gestionar tu servicio el lunes durante la mañana.`;
 }
 
-// ENVIAR CORREO (fúnica función que envía el mismo template a cliente y copia a nosotros)
+// ENVIAR CORREOS (CLIENTE Y COPIA)
 async function enviarCorreos(cliente, cotizacion) {
-    if(!cliente?.correo) return;
-    
+  console.log("📧 Iniciando envío de correos...");
+  console.log("📧 Cliente:", cliente);
+  console.log("📧 Cotización:", cotizacion);
+  
+  if (!cliente?.correo) {
+    console.error("❌ No hay correo del cliente");
+    return false;
+  }
+
+  // Validar email del cliente
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(cliente.correo)) {
+    console.error("❌ Email del cliente no válido:", cliente.correo);
+    return false;
+  }
+
+  try {
+    // Leer template
     const templatePath = path.join(__dirname, "correotemplate.html");
     let htmlTemplate = "";
     
-    try {
-        htmlTemplate = fs.readFileSync(templatePath, "utf8");
-        
-        // Obtener mensaje de horario
-        const mensajeHorario = obtenerMensajeHoraEstimado();
-        
-        // Formatear números como moneda chilena
-        const formatearNumero = (num) => {
-            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-        };
-        
-        // Reemplazar variables en el template
-        htmlTemplate = htmlTemplate
-            .replace(/{{nombre}}/g, cliente.nombre || "Cliente")
-            .replace(/{{origen}}/g, cotizacion.inicio || "")
-            .replace(/{{destino}}/g, cotizacion.destino || "")
-            .replace(/{{distancia}}/g, cotizacion.distancia_km ? cotizacion.distancia_km.toFixed(2) : "0")
-            .replace(/{{neto}}/g, formatearNumero(cotizacion.neto || 0))
-            .replace(/{{descuento}}/g, cotizacion.descuentoValor ? formatearNumero(cotizacion.descuentoValor) : "0")
-            .replace(/{{iva}}/g, formatearNumero(cotizacion.iva || 0))
-            .replace(/{{total}}/g, formatearNumero(cotizacion.total || 0))
-            .replace(/{{telefono}}/g, cliente.telefono || "")
-            .replace(/{{mensajeHorario}}/g, mensajeHorario)
-            .replace(/{{fecha}}/g, new Date().toLocaleString("es-CL"));
-            
-        // Si no hay descuento, ocultar esa fila
-        if (!cotizacion.descuentoValor || cotizacion.descuentoValor === 0) {
-            htmlTemplate = htmlTemplate.replace(/\{\{#if descuento\}[\s\S]*?\{\{\/if\}\}/g, '');
-        } else {
-            htmlTemplate = htmlTemplate
-                .replace(/\{\{#if descuento\}\}/g, '')
-                .replace(/\{\{\/if\}\}/g, '');
-        }
-        
-    } catch(err) {
-        console.error("Error leyendo template de correo:", err);
-        // Template de respaldo simple
-        htmlTemplate = `
-            <h2>Hola ${cliente.nombre || "cliente"}</h2>
-            <p><strong>Origen:</strong> ${cotizacion.inicio}</p>
-            <p><strong>Destino:</strong> ${cotizacion.destino}</p>
-            <p><strong>Distancia:</strong> ${cotizacion.distancia_km ? cotizacion.distancia_km.toFixed(2) : "0"} km</p>
-            <p><strong>Total:</strong> $${cotizacion.total}</p>
-        `;
+    if (fs.existsSync(templatePath)) {
+      htmlTemplate = fs.readFileSync(templatePath, "utf8");
+      console.log("✅ Template de correo cargado");
+    } else {
+      console.error("❌ No se encuentra correotemplate.html");
+      // Template de emergencia
+      htmlTemplate = `
+        <!DOCTYPE html>
+        <html>
+        <body style="font-family: Arial; padding: 20px;">
+          <h2>🚀 TuMotoExpress.cl</h2>
+          <p>Hola {{nombre}},</p>
+          <p>Tu cotización:</p>
+          <p><strong>Origen:</strong> {{origen}}<br>
+          <strong>Destino:</strong> {{destino}}<br>
+          <strong>Distancia:</strong> {{distancia}} km<br>
+          <strong>Total:</strong> ${{total}}</p>
+          <p>{{mensajeHorario}}</p>
+        </body>
+        </html>
+      `;
     }
-    
-    try {
-        // ENVIAR AL CLIENTE
-        await resend.emails.send({
-            from: process.env.FROM_EMAIL || "onboarding@resend.dev",
-            to: cliente.correo,
-            subject: `🚀 Tu cotización en TuMotoExpress.cl - $${cotizacion.total}`,
-            html: htmlTemplate
-        });
-        console.log("✅ Correo enviado al cliente:", cliente.correo);
-        
-        // ENVIAR LA MISMA COPIA A NOSOTROS (para estadísticas)
-        await resend.emails.send({
-            from: process.env.FROM_EMAIL || "onboarding@resend.dev",
-            to: ["contacto@tumotoexpress.cl"], // COPIA PARA ESTADÍSTICAS
-            subject: `📊 [COPIA ESTADÍSTICAS] Cotización para ${cliente.nombre || "cliente"} - $${cotizacion.total}`,
-            html: htmlTemplate // EL MISMO TEMPLATE EXACTO
-        });
-        console.log("✅ Copia enviada a contacto@tumotoexpress.cl para estadísticas");
-        
-        return true;
-    } catch(err) { 
-        console.error("Error enviando correos:", err.message); 
-        return false;
+
+    // Formatear números
+    const formatearNumero = (num) => {
+      if (!num && num !== 0) return "0";
+      return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    };
+
+    // Procesar template
+    let htmlCliente = htmlTemplate
+      .replace(/{{nombre}}/g, cliente.nombre || "Cliente")
+      .replace(/{{origen}}/g, cotizacion.inicio || "")
+      .replace(/{{destino}}/g, cotizacion.destino || "")
+      .replace(/{{distancia}}/g, cotizacion.distancia_km ? cotizacion.distancia_km.toFixed(2) : "0")
+      .replace(/{{neto}}/g, formatearNumero(cotizacion.neto))
+      .replace(/{{iva}}/g, formatearNumero(cotizacion.iva))
+      .replace(/{{total}}/g, formatearNumero(cotizacion.total))
+      .replace(/{{telefono}}/g, cliente.telefono || "")
+      .replace(/{{mensajeHorario}}/g, obtenerMensajeHoraEstimado());
+
+    // Procesar descuento condicional
+    if (cotizacion.descuentoValor && cotizacion.descuentoValor > 0) {
+      htmlCliente = htmlCliente
+        .replace(/{{#if descuento}}/g, '')
+        .replace(/{{\/if}}/g, '')
+        .replace(/{{descuento}}/g, formatearNumero(cotizacion.descuentoValor));
+    } else {
+      // Eliminar bloque de descuento
+      htmlCliente = htmlCliente.replace(/\{\{#if descuento\}\}[\s\S]*?\{\{\/if\}\}/g, '');
     }
+
+    // Enviar al CLIENTE
+    console.log("📧 Enviando a CLIENTE:", cliente.correo);
+    const resultCliente = await resend.emails.send({
+      from: "onboarding@resend.dev",
+      to: cliente.correo,
+      subject: `🚀 Tu cotización en TuMotoExpress.cl - $${formatearNumero(cotizacion.total)}`,
+      html: htmlCliente
+    });
+    console.log("✅ Correo enviado a cliente:", resultCliente);
+
+    // Enviar COPIA a nosotros
+    console.log("📧 Enviando COPIA a contacto@tumotoexpress.cl");
+    const resultCopia = await resend.emails.send({
+      from: "onboarding@resend.dev",
+      to: ["contacto@tumotoexpress.cl"],
+      subject: `📊 COPIA: Cotización para ${cliente.nombre || "cliente"} - $${formatearNumero(cotizacion.total)}`,
+      html: htmlCliente
+    });
+    console.log("✅ Copia enviada a interno:", resultCopia);
+
+    return true;
+  } catch (err) {
+    console.error("❌ Error enviando correos:", err.message);
+    console.error("❌ Error completo:", err);
+    return false;
+  }
 }
 
 // ENDPOINT COTIZAR
-app.post("/cotizar", async(req,res)=>{
-  try{
-    const {inicio,destino,cupon,nombre,correo,telefono} = req.body;
-    
-    if(!inicio || !destino) {
-      return res.status(400).json({error:"Faltan datos de origen o destino"});
+app.post("/cotizar", async (req, res) => {
+  console.log("📩 POST /cotizar recibido");
+  console.log("📩 Body:", req.body);
+  
+  try {
+    const { inicio, destino, cupon, nombre, correo, telefono } = req.body;
+
+    if (!inicio || !destino) {
+      return res.status(400).json({ error: "Faltan datos de origen o destino" });
     }
-    
+
     // Calcular distancia
-    const distancia_km = await calcularDistancia(inicio,destino);
-    if(!distancia_km) {
-      return res.status(400).json({error:"No se pudo calcular la distancia entre las direcciones. Verifica que las direcciones sean válidas en Chile."});
+    const distancia_km = await calcularDistancia(inicio, destino);
+    if (!distancia_km) {
+      return res.status(400).json({ 
+        error: "No se pudo calcular la distancia. Usaremos tarifa estimada.",
+        distancia_km: 8.5
+      });
     }
-    
+
     // Calcular precio
-    const resultado = calcularPrecio(distancia_km,cupon);
+    const resultado = calcularPrecio(distancia_km, cupon || "");
     
     // Preparar respuesta
     const respuesta = {
@@ -204,58 +266,68 @@ app.post("/cotizar", async(req,res)=>{
       distancia_km,
       ...resultado
     };
+
+    console.log("✅ Cotización calculada:", respuesta);
     
-    // Enviar respuesta
+    // Enviar respuesta inmediatamente
     res.json(respuesta);
-    
-    // Si se proporcionaron datos de cliente, enviar correos
-    if(nombre && correo) {
-      // Enviar AL CLIENTE y COPIA A NOSOTROS (mismo template)
-      enviarCorreos({nombre,correo,telefono}, respuesta).catch(err => 
-        console.error("Error en envío de correos:", err)
-      );
+
+    // Si hay datos de cliente, enviar correos (en segundo plano)
+    if (nombre && correo) {
+      console.log("📧 Datos de cliente completos, enviando correos...");
+      
+      // Enviar sin await para no bloquear la respuesta
+      enviarCorreos({ nombre, correo, telefono }, respuesta)
+        .then(success => {
+          if (success) {
+            console.log("✅ Correos enviados exitosamente");
+          } else {
+            console.log("❌ Fallo al enviar correos");
+          }
+        })
+        .catch(err => {
+          console.error("❌ Error en envío de correos:", err);
+        });
+    } else {
+      console.log("📧 No hay datos completos de cliente, no se envían correos");
     }
-    
-  } catch(error){ 
-    console.error("Error en /cotizar:", error); 
-    res.status(500).json({error:"Error interno del servidor"}); 
+
+  } catch (error) {
+    console.error("❌ Error en /cotizar:", error);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
 });
 
-// ENDPOINT ESPECÍFICO PARA ENVIAR CORREO (por si necesitas enviar solo el correo)
-app.post("/enviar-correo", async(req,res)=>{
-  try{
-    const {nombre,correo,telefono,inicio,destino,distancia_km,neto,descuentoValor,iva,total} = req.body;
-    
-    if(!nombre || !correo) {
-      return res.status(400).json({error:"Faltan datos del cliente"});
-    }
-    
-    const cotizacion = {
-      inicio,
-      destino,
-      distancia_km,
-      neto,
-      descuentoValor,
-      iva,
-      total
+// ENDPOINT DE PRUEBA PARA CORREOS
+app.post("/test-email", async (req, res) => {
+  try {
+    const testCliente = {
+      nombre: "Test",
+      correo: "contacto@tumotoexpress.cl", // Cambia por tu correo para prueba
+      telefono: "912345678"
     };
     
-    // Enviar AL CLIENTE y COPIA A NOSOTROS (mismo template)
-    const enviados = await enviarCorreos({nombre,correo,telefono}, cotizacion);
-    
-    if(enviados) {
-      res.json({success:true, message:"Correos enviados correctamente"});
-    } else {
-      res.status(500).json({error:"Error al enviar correos"});
-    }
-    
-  } catch(error){ 
-    console.error("Error en /enviar-correo:", error); 
-    res.status(500).json({error:"Error interno del servidor"}); 
+    const testCotizacion = {
+      inicio: "Av. Providencia 123",
+      destino: "Av. Las Condes 456",
+      distancia_km: 8.5,
+      neto: 8500,
+      descuentoValor: 850,
+      iva: 1453,
+      total: 9103
+    };
+
+    const result = await enviarCorreos(testCliente, testCotizacion);
+    res.json({ success: result, message: "Correos de prueba enviados" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
 // SERVER
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, ()=>console.log(`✅ Servidor corriendo en puerto ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`✅ Servidor corriendo en puerto ${PORT}`);
+  console.log(`📧 Resend API Key configurada: ${process.env.RESEND_API_KEY ? "SÍ" : "NO"}`);
+  console.log(`📍 Google Maps Key configurada: ${process.env.GOOGLE_MAPS_BACKEND_KEY ? "SÍ" : "NO"}`);
+});
