@@ -42,7 +42,7 @@
             font-weight: 700;
         }
         
-        .header .codigo {
+        .header .codigo-container {
             font-size: 15px;
             opacity: 0.9;
             margin-top: 12px;
@@ -50,9 +50,18 @@
             background: rgba(255,255,255,0.1);
             border-radius: 40px;
             display: inline-block;
-            font-family: monospace;
-            letter-spacing: 0.5px;
             border: 1px solid rgba(255,255,255,0.15);
+        }
+        
+        .header .codigo-label {
+            font-weight: normal;
+            margin-right: 5px;
+        }
+        
+        .header .codigo-value {
+            font-family: monospace;
+            font-weight: bold;
+            letter-spacing: 0.5px;
         }
         
         /* CONTENIDO PRINCIPAL */
@@ -298,6 +307,11 @@
                 padding: 14px 15px;
                 font-size: 15px;
             }
+            
+            .header .codigo-container {
+                font-size: 13px;
+                padding: 5px 10px;
+            }
         }
         
         .text-center {
@@ -310,7 +324,10 @@
         <!-- HEADER -->
         <div class="header">
             <h1>TuMotoExpress.cl</h1>
-            <div class="codigo">#{{codigoCotizacion}}</div>
+            <div class="codigo-container">
+                <span class="codigo-label">Código de cotización:</span>
+                <span class="codigo-value">{{codigoCotizacion}}</span>
+            </div>
         </div>
         
         <!-- CONTENIDO -->
@@ -384,7 +401,7 @@
             
             <!-- BOTÓN WHATSAPP -->
             <p class="text-center" style="margin: 16px 0 8px; font-size: 14px;">
-                <strong>¿Quieres confirmar tu envío?</strong>
+                <strong>¿Quieres confirmar tu viaje?</strong>
             </p>
             
             <a href="https://wa.me/56942325524?text=Hola%2C%20confirmo%20el%20servicio%20de%20TuMotoExpress.cl%20-%20{{origen}}%20a%20{{destino}}%20por%20%24{{total}}%20(Código%20{{codigoCotizacion}})" 
@@ -400,7 +417,7 @@
                 </div>
                 
                 <div class="servicio-badge">
-                    Mensajería express en minutos...🏍️
+                    🏍️ Servicio de moto express
                 </div>
                 
                 <div class="nota">
@@ -410,7 +427,7 @@
                 </div>
                 
                 <div class="copyright">
-                    © 2026 TuMotoExpress.cl
+                    © 2024 TuMotoExpress.cl
                 </div>
             </div>
         </div>
