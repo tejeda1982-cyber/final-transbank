@@ -5,18 +5,73 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cotización TuMotoExpress.cl</title>
 <style>
-body { font-family: Arial, sans-serif; margin:0; padding:0; color:#333; background-color:#f9f9f9; }
-.container { max-width:600px; margin:auto; background:#fff; border:1px solid #ccc; padding:20px; position:relative; overflow:hidden; }
-.header { text-align:center; background:#004080; color:white; padding:15px; border-radius:5px 5px 0 0; }
-.header h2 { margin:0; }
-.cotizacion-info { margin-top:20px; position:relative; }
-.marca-agua { position:absolute; top:20%; left:0; width:100%; text-align:center; font-size:48px; color:rgba(255,0,0,0.12); pointer-events:none; user-select:none; white-space:nowrap; }
-table { width:100%; border-collapse:collapse; margin-top:10px; }
-td { padding:5px 0; }
-.label { font-weight:bold; }
-.total { font-size:18px; font-weight:bold; margin-top:10px; }
-.descuento { color:#d00; }
-.cliente-info { margin-top:20px; border-top:1px solid #ccc; padding-top:10px; }
+  body {
+    font-family: Arial, sans-serif;
+    margin:0;
+    padding:0;
+    color:#333;
+    background-color:#f9f9f9;
+  }
+  .container {
+    max-width:600px;
+    margin:auto;
+    background:#fff;
+    border:1px solid #ccc;
+    padding:20px;
+    position:relative;
+    overflow:hidden;
+  }
+  .header {
+    text-align:center;
+    background:#004080;
+    color:white;
+    padding:15px;
+    border-radius:5px 5px 0 0;
+  }
+  .header h2 {
+    margin:0;
+  }
+  .cotizacion-info {
+    margin-top:20px;
+    position:relative;
+  }
+  .marca-agua {
+    position:absolute;
+    top:20%;
+    left:0;
+    width:100%;
+    text-align:center;
+    font-size:48px;
+    color:rgba(255,0,0,0.15);
+    transform: rotate(-30deg);
+    pointer-events:none;
+    user-select:none;
+    white-space:nowrap;
+  }
+  table {
+    width:100%;
+    border-collapse:collapse;
+    margin-top:10px;
+  }
+  td {
+    padding:5px 0;
+  }
+  .label {
+    font-weight:bold;
+  }
+  .total {
+    font-size:18px;
+    font-weight:bold;
+    margin-top:10px;
+  }
+  .descuento {
+    color:#d00;
+  }
+  .cliente-info {
+    margin-top:20px;
+    border-top:1px solid #ccc;
+    padding-top:10px;
+  }
 </style>
 </head>
 <body>
@@ -31,15 +86,37 @@ td { padding:5px 0; }
       <p>Estimado {{nombre}}, adjuntamos su cotización:</p>
 
       <table>
-        <tr><td class="label">Origen:</td><td>{{inicio}}</td></tr>
-        <tr><td class="label">Destino:</td><td>{{destino}}</td></tr>
-        <tr><td class="label">Distancia:</td><td>{{distancia_km}} km</td></tr>
-        <tr><td class="label">Neto:</td><td>$ {{neto}}</td></tr>
+        <tr>
+          <td class="label">Origen:</td>
+          <td>{{inicio}}</td>
+        </tr>
+        <tr>
+          <td class="label">Destino:</td>
+          <td>{{destino}}</td>
+        </tr>
+        <tr>
+          <td class="label">Distancia:</td>
+          <td>{{distancia_km}} km</td>
+        </tr>
+        <tr>
+          <td class="label">Neto:</td>
+          <td>$ {{neto}}</td>
+        </tr>
+        <!-- Descuento solo si aplica -->
         {{#descuentoValor}}
-        <tr><td class="label descuento">{{descuentoTexto}}:</td><td class="descuento">- $ {{descuentoValor}}</td></tr>
+        <tr>
+          <td class="label descuento">{{descuentoTexto}}:</td>
+          <td class="descuento">- $ {{descuentoValor}}</td>
+        </tr>
         {{/descuentoValor}}
-        <tr><td class="label">IVA:</td><td>$ {{iva}}</td></tr>
-        <tr class="total"><td class="label">Total:</td><td>$ {{total}}</td></tr>
+        <tr>
+          <td class="label">IVA:</td>
+          <td>$ {{iva}}</td>
+        </tr>
+        <tr class="total">
+          <td class="label">Total:</td>
+          <td>$ {{total}}</td>
+        </tr>
       </table>
 
       <div class="cliente-info">

@@ -1,148 +1,223 @@
-require("dotenv").config();
-const express = require("express");
-const cors = require("cors");
-const path = require("path");
-const fs = require("fs");
-const fetch = require("node-fetch"); // versión 2.x
-const { Resend } = require("resend");
-
-const resend = new Resend(process.env.RESEND_API_KEY);
-const app = express();
-
-app.use(cors());
-app.use(express.json());
-
-// Servir HTML y archivos estáticos
-app.use(express.static(__dirname));
-app.get("/", (req,res)=>res.sendFile(path.join(__dirname,"index.html")));
-app.get("/health",(req,res)=>res.json({status:"OK"}));
-
-// TARIFAS
-const TARIFAS_FILE = path.join(__dirname, "tarifas.json");
-function leerTarifas(){ 
-  try { 
-    return JSON.parse(fs.readFileSync(TARIFAS_FILE,"utf8")); 
-  } catch { 
-    return { tarifa_base:6000, km_adicional_6_10:1000, km_adicional_10_mas:850, cupones:{} }; 
-  } 
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Cotizador TuMotoExpress.cl</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: #f5f6fa;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  position: relative;
 }
-let {tarifa_base,km_adicional_6_10,km_adicional_10_mas,cupones} = leerTarifas();
-let porcentajeAjuste = 0;
+body::before {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: url('logo.png') no-repeat 90% center;
+  background-size: 400px;
+  opacity: 1;
+  z-index: -1;
+}
 
-// CALCULAR DISTANCIA GOOGLE
-async function calcularDistancia(inicio,destino){
-  // URL encode de manera segura
-  const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(inicio)}&destination=${encodeURIComponent(destino)}&mode=driving&region=CL&key=${process.env.GOOGLE_MAPS_BACKEND_KEY}`;
-  try {
-    const resp = await fetch(url);
-    const data = await resp.json();
-    if(data.status !== "OK"){
-      console.error("Google Directions API error:", data.error_message || data.status);
-      return null;
+.container {
+  background: white;
+  padding: 40px 30px;
+  border-radius: 20px;
+  width: 95%;
+  max-width: 480px;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.2);
+  text-align: center;
+}
+
+h2 { font-size: 28px; margin-bottom: 25px; color: #111; }
+input { width: 100%; padding: 16px; margin: 12px 0; border-radius: 12px; border: 1px solid #ccc; font-size: 16px; transition: all 0.2s; }
+input:focus { border-color: #111; box-shadow: 0 0 8px rgba(0,0,0,0.1); }
+
+small { display: block; margin-bottom: 10px; color: #555; font-size: 14px; }
+
+button { width: 100%; padding: 16px; margin-top: 10px; border-radius: 12px; border: none; font-size: 16px; cursor: pointer; font-weight: bold; transition: all 0.2s; }
+button:hover { opacity: 0.9; }
+
+.btn-cotizar { background: #111; color: white; }
+.btn-whatsapp { background: #25D366; color: white; display: none; margin-top: 15px; }
+.btn-correo { background: #1a73e8; color: white; display: none; margin-top: 15px; }
+.btn-pagar { background: #ff4500; color: white; display: none; margin-top: 15px; }
+
+.resultado {
+  margin-top: 20px;
+  background: #f2f2f2;
+  padding: 18px;
+  border-radius: 14px;
+  font-size: 15px;
+  display: none;
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+}
+.resultado::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: url('logo.png') no-repeat 95% center;
+  background-size: 140px;
+  opacity: 1;
+  z-index: 0;
+}
+.resultado * { position: relative; z-index: 1; }
+
+.spinner {
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid #111;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin: 20px auto;
+  display: none;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h2>🚀 Cotizador TuMotoExpress.cl</h2>
+
+  <input type="text" id="inicio" placeholder="Dirección de origen">
+  <input type="text" id="destino" placeholder="Dirección de destino">
+  <input type="text" id="codigoCupon" placeholder="Cupón (opcional)">
+  <small>Incluye comuna para mayor precisión</small>
+
+  <button class="btn-cotizar" onclick="cotizar()">Cotizar</button>
+
+  <div class="spinner" id="spinner"></div>
+  <div id="resultado" class="resultado"></div>
+
+  <!-- CAMPOS CLIENTE, OCULTOS AL INICIO -->
+  <div id="camposCliente" style="display:none;">
+    <input type="text" id="nombreCliente" placeholder="Nombre">
+    <input type="text" id="correoCliente" placeholder="Correo">
+    <input type="text" id="telefonoCliente" placeholder="Teléfono">
+    <button id="btnComprobar" class="btn-whatsapp">Comprobar disponibilidad</button>
+    <button id="btnEnviarCorreo" class="btn-correo">Enviar correo</button>
+    <button id="btnPagar" class="btn-pagar">Pagar con WebPay</button>
+  </div>
+
+</div>
+
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD7ExvZ0pJBjs37LHwbOcWrUqpxg_V78mk&libraries=places&language=es" defer></script>
+
+<script>
+function initAutocomplete() {
+  const options = { types:["geocode","establishment"], componentRestrictions:{country:"cl"}, fields:["formatted_address","geometry","name"] };
+  new google.maps.places.Autocomplete(document.getElementById("inicio"), options);
+  new google.maps.places.Autocomplete(document.getElementById("destino"), options);
+}
+window.onload = initAutocomplete;
+
+function obtenerMensajeHoraEstimado() {
+    const ahora = new Date();
+    const dia = ahora.getDay(); // 0=Domingo
+    const hora = ahora.getHours();
+    const minutos = ahora.getMinutes();
+    const diasSemana = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+    function sumar80Minutos(fecha) { return new Date(fecha.getTime() + 80 * 60000); }
+
+    if (dia >= 1 && dia <= 4 && hora < 9) {
+        return `Gracias por cotizar en TuMotoExpress.cl. En este momento nos encontramos fuera de horario comercial, pero podemos gestionar tu servicio para hoy ${diasSemana[dia]} durante la mañana (sujeto a disponibilidad).`;
     }
-    // valor en metros
-    return data.routes[0].legs[0].distance.value / 1000;
-  } catch(err){
-    console.error("Error fetch Google Directions API:", err);
-    return null;
-  }
+    if (dia >= 1 && dia <= 5) {
+        if (hora >= 9 && (hora < 15 || (hora === 15 && minutos <= 40))) {
+            const fechaEstimado = sumar80Minutos(ahora);
+            return `Gracias por cotizar en TuMotoExpress.cl. Podemos gestionar tu servicio a partir de las ${fechaEstimado.getHours().toString().padStart(2,'0')}:${fechaEstimado.getMinutes().toString().padStart(2,'0')} horas aproximadamente (sujeto a disponibilidad).`;
+        }
+    }
+    if (dia >= 1 && dia <= 4 && hora > 15) {
+        const manana = new Date(ahora); manana.setDate(ahora.getDate()+1);
+        return `Gracias por cotizar en TuMotoExpress.cl. Fuera de horario comercial, podemos gestionar tu servicio para mañana ${diasSemana[manana.getDay()]} durante la mañana (sujeto a disponibilidad).`;
+    }
+    const lunes = new Date(ahora); while(lunes.getDay()!==1){lunes.setDate(lunes.getDate()+1);}
+    return `Gracias por cotizar en TuMotoExpress.cl. Fuera de horario comercial, podemos gestionar tu servicio para el lunes durante la mañana (sujeto a disponibilidad).`;
 }
 
-// CALCULAR PRECIO
-function calcularPrecio(distancia_km, codigo_cupon=""){
-  let neto = 0;
-  if(distancia_km <= 6) neto = tarifa_base;
-  else if(distancia_km <= 10) neto = Math.round(distancia_km * km_adicional_6_10);
-  else neto = Math.round(distancia_km * km_adicional_10_mas);
+async function cotizar() {
+  const inicio = document.getElementById("inicio").value;
+  const destino = document.getElementById("destino").value;
+  const codigo_cupon = document.getElementById("codigoCupon").value.trim().toUpperCase();
+  if(!inicio || !destino){ alert("Completa origen y destino"); return; }
 
-  if(porcentajeAjuste>0) neto = Math.round(neto*(1+porcentajeAjuste/100));
+  const spinner = document.getElementById("spinner"); spinner.style.display="block";
 
-  let descuentoValor=0, descuentoTexto="";
-  if(codigo_cupon && cupones[codigo_cupon.toUpperCase()]){
-    const porcentaje = cupones[codigo_cupon.toUpperCase()];
-    descuentoValor = Math.round(neto*(porcentaje/100));
-    descuentoTexto = `Descuento ${codigo_cupon.toUpperCase()} ${porcentaje}%`;
-  }
-
-  const netoConDescuento = neto - descuentoValor;
-  const iva = Math.round(netoConDescuento * 0.19);
-  const total = netoConDescuento + iva;
-
-  return {neto, descuentoValor, descuentoTexto, iva, total, netoConDescuento};
-}
-
-// ENVIAR CORREO
-async function enviarCorreo(cliente, cotizacion){
-  if(!cliente?.correo) return;
   try {
-    // Correo al cliente
-    await resend.emails.send({
-      from:"contacto@tumotoexpress.cl",
-      to:cliente.correo,
-      subject:"Cotización TuMotoExpress",
-      html: fs.readFileSync(path.join(__dirname,"correoTemplate.html"), "utf8")
-          .replace(/{{nombre}}/g, cliente.nombre || "cliente")
-          .replace(/{{inicio}}/g, cotizacion.inicio)
-          .replace(/{{destino}}/g, cotizacion.destino)
-          .replace(/{{distancia_km}}/g, cotizacion.distancia_km.toFixed(2))
-          .replace(/{{neto}}/g, cotizacion.neto)
-          .replace(/{{descuentoValor}}/g, cotizacion.descuentoValor)
-          .replace(/{{descuentoTexto}}/g, cotizacion.descuentoTexto)
-          .replace(/{{iva}}/g, cotizacion.iva)
-          .replace(/{{total}}/g, cotizacion.total)
-          .replace(/{{correo}}/g, cliente.correo)
-          .replace(/{{telefono}}/g, cliente.telefono || "")
-          .replace(/{{numeroCotizacion}}/g, Math.floor(Math.random()*1000000))
+    const response = await fetch("/cotizar", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ inicio, destino, cupon: codigo_cupon })
     });
+    const data = await response.json();
+    spinner.style.display="none";
+    if(data.error){ alert(data.error); return; }
 
-    // Copia de control a nosotros
-    await resend.emails.send({
-      from:"contacto@tumotoexpress.cl",
-      to:"contacto@tumotoexpress.cl",
-      subject:`Copia cotización de ${cliente.nombre || "cliente"}`,
-      html: fs.readFileSync(path.join(__dirname,"correoTemplate.html"), "utf8")
-          .replace(/{{nombre}}/g, cliente.nombre || "cliente")
-          .replace(/{{inicio}}/g, cotizacion.inicio)
-          .replace(/{{destino}}/g, cotizacion.destino)
-          .replace(/{{distancia_km}}/g, cotizacion.distancia_km.toFixed(2))
-          .replace(/{{neto}}/g, cotizacion.neto)
-          .replace(/{{descuentoValor}}/g, cotizacion.descuentoValor)
-          .replace(/{{descuentoTexto}}/g, cotizacion.descuentoTexto)
-          .replace(/{{iva}}/g, cotizacion.iva)
-          .replace(/{{total}}/g, cotizacion.total)
-          .replace(/{{correo}}/g, cliente.correo)
-          .replace(/{{telefono}}/g, cliente.telefono || "")
-          .replace(/{{numeroCotizacion}}/g, Math.floor(Math.random()*1000000))
-    });
+    const resultadoDiv = document.getElementById("resultado");
+    resultadoDiv.style.display="block";
+    let html = `
+      <strong>📍 Origen:</strong> ${data.inicio}<br>
+      <strong>📍 Destino:</strong> ${data.destino}<br><br>
+      <strong>📏 Distancia:</strong> ${data.distancia_km.toFixed(2)} km<br>
+      <strong>💵 Neto:</strong> $${data.neto}<br>
+    `;
+    if(data.descuentoValor && data.descuentoTexto) {
+      html += `<strong>🎟️ ${data.descuentoTexto}:</strong> -$${data.descuentoValor}<br>`;
+      html += `<strong>💵 Neto con descuento:</strong> $${data.netoConDescuento}<br>`;
+    }
+    html += `<strong>🧾 IVA:</strong> $${data.iva}<br><strong>💳 Total:</strong> <strong>$${data.total}</strong><br><br><em>${obtenerMensajeHoraEstimado()}</em>`;
+    resultadoDiv.innerHTML = html;
 
-  } catch(err){
-    console.error("Error enviando correo:", err.message);
-  }
+    // Mostrar campos de cliente y botones
+    const camposCliente = document.getElementById("camposCliente");
+    camposCliente.style.display="block";
+
+    // Botón WhatsApp
+    const telefono="56942325524";
+    const mensaje = encodeURIComponent(`Hola, acepto el servicio de TuMotoExpress.cl.\nOrigen: ${data.inicio}\nDestino: ${data.destino}\nDistancia: ${data.distancia_km.toFixed(2)} km\nTotal: $${data.total}\n${obtenerMensajeHoraEstimado()}`);
+    const btnWhatsapp = document.getElementById("btnComprobar");
+    btnWhatsapp.style.display="block";
+    btnWhatsapp.onclick = () => window.open(`https://wa.me/${telefono}?text=${mensaje}`,"_blank");
+
+    // Botón Enviar Correo
+    const btnCorreo = document.getElementById("btnEnviarCorreo");
+    btnCorreo.style.display="block";
+    btnCorreo.onclick = async () => {
+      const nombre = document.getElementById("nombreCliente").value;
+      const correo = document.getElementById("correoCliente").value;
+      const telefonoC = document.getElementById("telefonoCliente").value;
+      await fetch("/cotizar", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ inicio, destino, cupon: codigo_cupon, nombre, correo, telefono:telefonoC })
+      });
+      alert("Correo enviado correctamente");
+    };
+
+    // Botón Pagar
+    const btnPagar = document.getElementById("btnPagar");
+    btnPagar.style.display="block";
+    btnPagar.onclick = () => alert("Integración WebPay pendiente");
+
+  } catch(err){ spinner.style.display="none"; console.error(err); alert("Error al cotizar, revisa tu backend"); }
 }
-
-// ENDPOINT COTIZAR
-app.post("/cotizar", async(req,res)=>{
-  try{
-    const {inicio,destino,cupon,nombre,correo,telefono} = req.body;
-    if(!inicio || !destino) return res.status(400).json({error:"Faltan datos"});
-
-    const distancia_km = await calcularDistancia(inicio,destino);
-    if(!distancia_km) return res.status(400).json({error:"No se pudo calcular distancia"});
-
-    const resultado = calcularPrecio(distancia_km,cupon);
-    const respuesta = {inicio,destino,distancia_km,...resultado};
-
-    res.json(respuesta);
-
-    // Enviar correo solo si el cliente completó datos
-    if(nombre && correo) await enviarCorreo({nombre,correo,telefono}, respuesta);
-
-  } catch(error){
-    console.error("Error en /cotizar:",error);
-    res.status(500).json({error:"Error interno del servidor"});
-  }
-});
-
-// SERVER
-const PORT = process.env.PORT || 10000;
-app.listen(PORT,()=>console.log(`✅ Servidor corriendo en puerto ${PORT}`));
+</script>
+</body>
+</html>
