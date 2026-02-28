@@ -14,7 +14,10 @@ body {
   align-items: center;
   min-height: 100vh;
   position: relative;
+  overflow-x: hidden;
 }
+
+/* LOGO REPETIDO A LA IZQUIERDA - MODIFICADO */
 body::before {
   content: "";
   position: fixed;
@@ -22,8 +25,8 @@ body::before {
   left: 0;
   width: 100%;
   height: 100%;
-  background: url('logo.png') no-repeat 90% center;
-  background-size: 400px;
+  background: url('logo.png') repeat-y left center;
+  background-size: 200px auto;
   opacity: 0.1;
   z-index: -1;
 }
@@ -36,6 +39,9 @@ body::before {
   max-width: 480px;
   box-shadow: 0 25px 60px rgba(0,0,0,0.2);
   text-align: center;
+  position: relative;
+  z-index: 1;
+  margin-left: 15px; /* Pequeño margen para no tapar el logo */
 }
 
 h2 { font-size: 28px; margin-bottom: 25px; color: #111; }
@@ -64,6 +70,8 @@ button:active { transform: translateY(0); }
   position: relative;
   overflow: hidden;
 }
+
+/* Logo también en el resultado (opcional) */
 .resultado::before {
   content: "";
   position: absolute;
@@ -71,11 +79,12 @@ button:active { transform: translateY(0); }
   left: 0;
   width: 100%;
   height: 100%;
-  background: url('logo.png') no-repeat 95% center;
-  background-size: 140px;
-  opacity: 1;
+  background: url('logo.png') repeat-y left center;
+  background-size: 120px auto;
+  opacity: 0.1;
   z-index: 0;
 }
+
 .resultado * { position: relative; z-index: 1; }
 
 .spinner {
@@ -89,6 +98,39 @@ button:active { transform: translateY(0); }
   display: none;
 }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* RESPONSIVE PARA MÓVILES */
+@media screen and (max-width: 600px) {
+  body::before {
+    background-size: 150px auto;
+    opacity: 0.08;
+  }
+  
+  .container {
+    margin-left: 10px;
+    padding: 30px 20px;
+  }
+}
+
+@media screen and (max-width: 400px) {
+  body::before {
+    background-size: 100px auto;
+    opacity: 0.06;
+  }
+  
+  .container {
+    margin-left: 5px;
+    padding: 25px 15px;
+  }
+  
+  .resultado::before {
+    background-size: 80px auto;
+  }
+  
+  h2 {
+    font-size: 24px;
+  }
+}
 </style>
 </head>
 <body>
@@ -112,7 +154,7 @@ button:active { transform: translateY(0); }
     <input type="email" id="correoCliente" placeholder="Correo electrónico">
     <input type="tel" id="telefonoCliente" placeholder="Teléfono (ej: 912345678)">
     
-    <!-- BOTÓN CAMBIADO DE "Comprobar disponibilidad" A "Solicitar servicio" -->
+    <!-- BOTÓN SOLICITAR SERVICIO -->
     <button id="btnSolicitarServicio" class="btn-whatsapp">📱 Solicitar servicio</button>
     
     <button id="btnEnviarCorreo" class="btn-correo">📧 Enviar cotización por correo</button>
@@ -222,7 +264,7 @@ async function cotizar() {
     window.ultimaCotizacion = data;
     window.datosViaje = { inicio, destino, cupon: codigo_cupon };
 
-    // Botón WhatsApp - AHORA DICE "Solicitar servicio"
+    // Botón Solicitar servicio (WhatsApp)
     const telefono = "56942325524";
     const mensaje = encodeURIComponent(`Hola, solicito el servicio de TuMotoExpress.cl.\nCódigo de cotización: ${window.codigoCotizacion || 'Pendiente'}\nOrigen: ${data.inicio}\nDestino: ${data.destino}\nDistancia: ${data.distancia_km.toFixed(2)} km\nTotal: $${data.total.toLocaleString('es-CL')}\n${obtenerMensajeHoraEstimado()}`);
     
