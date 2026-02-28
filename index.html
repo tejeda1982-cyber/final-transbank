@@ -17,7 +17,7 @@ body {
   overflow-x: hidden;
 }
 
-/* LOGOS LATERALES (se mantienen) */
+/* LOGOS LATERALES */
 body::before {
   content: "";
   position: fixed;
@@ -268,11 +268,12 @@ button:active { transform: translateY(0); }
 <div class="container">
   <h2>🚀 Cotizador TuMotoExpress.cl</h2>
 
+  <!-- Dirección de origen (siempre visible) -->
   <input type="text" id="inicio" placeholder="Dirección de origen">
   
-  <!-- Contenedor para múltiples destinos -->
+  <!-- Contenedor para múltiples destinos (empieza con Destino 1) -->
   <div id="destinosContainer">
-    <div class="destino-adicional" id="destino-0">
+    <div class="destino-adicional" id="destino-1">
       <input type="text" class="destino-input" placeholder="Dirección de destino 1">
     </div>
   </div>
@@ -306,7 +307,7 @@ button:active { transform: translateY(0); }
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyD7ExvZ0pJBjs37LHwbOcWrUqpxg_V78mk&libraries=places&language=es" defer></script>
 
 <script>
-let contadorDestinos = 1;
+let contadorDestinos = 1;  // Empezamos en 1 porque ya tenemos Destino 1
 
 function initAutocomplete() {
   const options = { 
@@ -315,28 +316,32 @@ function initAutocomplete() {
     fields: ["formatted_address", "geometry", "name"] 
   };
   
+  // Autocomplete para origen
   new google.maps.places.Autocomplete(document.getElementById("inicio"), options);
   
+  // Autocomplete para todos los destinos existentes
   document.querySelectorAll('.destino-input').forEach(input => {
     new google.maps.places.Autocomplete(input, options);
   });
 }
 
 function agregarDestino() {
-  contadorDestinos++;
+  contadorDestinos++;  // Incrementa el contador
   
   const container = document.getElementById('destinosContainer');
   const nuevoDestino = document.createElement('div');
   nuevoDestino.className = 'destino-adicional';
   nuevoDestino.id = `destino-${contadorDestinos}`;
   
+  // El placeholder muestra el número correcto de destino
   nuevoDestino.innerHTML = `
-    <input type="text" class="destino-input" placeholder="Dirección de destino ${contadorDestinos + 1}">
-    <button class="btn-eliminar" onclick="eliminarDestino('${contadorDestinos}')">✖</button>
+    <input type="text" class="destino-input" placeholder="Dirección de destino ${contadorDestinos}">
+    <button class="btn-eliminar" onclick="eliminarDestino(${contadorDestinos})">✖</button>
   `;
   
   container.appendChild(nuevoDestino);
   
+  // Inicializar autocomplete para el nuevo input
   const options = { 
     types: ["geocode", "establishment"], 
     componentRestrictions: { country: "cl" }, 
@@ -349,9 +354,30 @@ function eliminarDestino(id) {
   const elemento = document.getElementById(`destino-${id}`);
   if (elemento && document.querySelectorAll('.destino-adicional').length > 1) {
     elemento.remove();
+    
+    // 🔴 REENUMERAR los placeholders después de eliminar
+    reenumerarDestinos();
   } else {
     alert('Debe haber al menos un destino');
   }
+}
+
+// 🔴 NUEVA FUNCIÓN: Reenumera los placeholders después de eliminar
+function reenumerarDestinos() {
+  const destinos = document.querySelectorAll('.destino-adicional');
+  destinos.forEach((destino, index) => {
+    const input = destino.querySelector('.destino-input');
+    const nuevoNumero = index + 1;
+    input.placeholder = `Dirección de destino ${nuevoNumero}`;
+    destino.id = `destino-${nuevoNumero}`;
+    
+    // Actualizar el botón eliminar con el nuevo ID
+    const btnEliminar = destino.querySelector('.btn-eliminar');
+    btnEliminar.setAttribute('onclick', `eliminarDestino(${nuevoNumero})`);
+  });
+  
+  // Actualizar el contador global
+  contadorDestinos = destinos.length;
 }
 
 function obtenerTodosLosDestinos() {
@@ -437,11 +463,11 @@ async function cotizar() {
     // Mostrar origen
     html += `<strong>📍 Origen:</strong> ${data.origen}<br><br>`;
     
-    // Mostrar TODOS los destinos ingresados
+    // Mostrar TODOS los destinos ingresados con numeración correcta
     html += `<strong>📋 Destinos ingresados (${destinos.length}):</strong><br>`;
     html += `<ol class="destinos-lista" style="margin:5px 0 15px 20px;">`;
     destinos.forEach((destino, index) => {
-      html += `<li>${destino}</li>`;
+      html += `<li><strong>Destino ${index + 1}:</strong> ${destino}</li>`;
     });
     html += `</ol>`;
     
