@@ -230,7 +230,7 @@ function generarCodigoCotizacion() {
   return codigo;
 }
 
-// FUNCIÓN PARA ENVIAR CORREOS
+// 🔴 FUNCIÓN PARA ENVIAR CORREOS - SOLO CAMBIÉ LA GENERACIÓN DE TRAMOSHTML
 async function enviarCorreos(cliente, cotizacion) {
   console.log("📧 Iniciando envío de correos...");
   
@@ -265,18 +265,40 @@ async function enviarCorreos(cliente, cotizacion) {
       return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     };
 
-    // Generar HTML para los tramos
+    // 🔴 GENERAR HTML PARA LOS TRAMOS CON TABLAS (COMPATIBLE OUTLOOK)
     let tramosHtml = '';
     cotizacion.tramos.forEach((tramo) => {
       tramosHtml += `
-        <div style="background: #f9f9f9; border-radius: 8px; padding: 12px; margin: 10px 0; border-left: 3px solid #ff4500;">
-          <strong style="font-size: 15px;">Tramo ${tramo.numero}:</strong> ${tramo.desde} <strong>→</strong> ${tramo.direccion}<br>
-          <div style="display: flex; gap: 15px; margin-top: 8px; color: #666; font-size: 13px; flex-wrap: wrap;">
-            <span style="background: #f0f0f0; padding: 4px 10px; border-radius: 20px;">📏 ${tramo.distancia_km.toFixed(2)} km</span>
-            <span style="background: #f0f0f0; padding: 4px 10px; border-radius: 20px;">⏱️ ${tramo.tiempo_minutos} min</span>
-            <span style="background: #f0f0f0; padding: 4px 10px; border-radius: 20px;">💰 $${formatearNumero(tramo.precio)}</span>
-          </div>
-        </div>
+        <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin:10px 0;">
+          <tr>
+            <td style="background:#f9f9f9; border-radius:8px; padding:12px; border-left:4px solid #ff4500;">
+              <table width="100%" border="0" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="font-size:15px; font-weight:bold; color:#333; padding-bottom:8px;">
+                    🚚 Tramo ${tramo.numero}: ${tramo.desde} → ${tramo.direccion}
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <table border="0" cellpadding="0" cellspacing="0">
+                      <tr>
+                        <td style="background:#f0f0f0; padding:4px 12px; border-radius:20px; font-size:13px; margin-right:10px; white-space:nowrap;">
+                          📏 ${tramo.distancia_km.toFixed(2)} km
+                        </td>
+                        <td style="background:#f0f0f0; padding:4px 12px; border-radius:20px; font-size:13px; margin-right:10px; white-space:nowrap;">
+                          ⏱️ ${tramo.tiempo_minutos} min
+                        </td>
+                        <td style="background:#f0f0f0; padding:4px 12px; border-radius:20px; font-size:13px; white-space:nowrap;">
+                          💰 $${formatearNumero(tramo.precio)}
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
       `;
     });
 

@@ -89,10 +89,10 @@ button:active { transform: translateY(0); }
   overflow: hidden;
 }
 
-/* SECCIÓN DE PRECIOS CON LOGO FUERTE (IGUAL QUE LATERALES) */
+/* SECCIÓN DE PRECIOS CON LOGO MUCHO MÁS FUERTE (OPACIDAD 1 Y SIN ATENUAR) */
 .precios-section {
   position: relative;
-  padding: 0;  /* Quitamos padding para que el logo no tenga fondo encima */
+  padding: 0;
   background: #ffffff;
   border-radius: 12px;
   margin: 15px 0;
@@ -102,16 +102,16 @@ button:active { transform: translateY(0); }
   background-image: url('logo.png');
   background-repeat: no-repeat;
   background-position: center;
-  background-size: 150px auto;
-  background-opacity: 1;  /* Fondo completamente opaco */
+  background-size: 180px auto;  /* Logo más grande */
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Sin opacity, el logo se ve al 100% */
 }
 
-/* Fondo blanco SEMITRANSPARENTE para el texto */
+/* Fondo blanco SEMITRANSPARENTE para el texto - AHORA MÁS TRANSPARENTE PARA DEJAR VER EL LOGO */
 .precios-content {
-  background: rgba(255, 255, 255, 0.85);  /* Fondo blanco semitransparente para leer el texto */
+  background: rgba(255, 255, 255, 0.7);  /* Más transparente (antes 0.85) para que el logo se vea más */
   width: 90%;
   padding: 20px;
   border-radius: 10px;
@@ -250,11 +250,12 @@ button:active { transform: translateY(0); }
   .destino-adicional { flex-direction: column; }
   .btn-eliminar { width: 100%; }
   .precios-section {
-    background-size: 100px auto;
+    background-size: 140px auto;
   }
   .precios-content {
     width: 85%;
     padding: 15px;
+    background: rgba(255, 255, 255, 0.7);
   }
 }
 </style>
@@ -475,7 +476,7 @@ async function cotizar() {
       </div>
     `;
     
-    // SECCIÓN DE PRECIOS CON LOGO FUERTE (background-image en lugar de pseudo-elemento)
+    // SECCIÓN DE PRECIOS CON LOGO MUCHO MÁS FUERTE
     html += `
       <div class="precios-section">
         <div class="precios-content">
